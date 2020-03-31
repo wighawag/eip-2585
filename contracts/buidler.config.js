@@ -1,6 +1,11 @@
 const fs = require('fs');
 usePlugin("buidler-deploy");
 
+let mnemonic;
+try {
+  mnemonic = fs.readFileSync('.mnemonic').toString()
+} catch(e) {}
+
 module.exports = {
   namedAccounts: {
       // TODO per chain
@@ -22,9 +27,9 @@ module.exports = {
     // TODO blockTime: 6, ?
     rinkeby: {
       url: 'https://rinkeby.infura.io/v3/bc0bdd4eaac640278cdebc3aa91fabe4',
-      accounts: {
-        mnemonic: fs.readFileSync('.mnemonic').toString()
-      }
+      accounts: mnemonic ? {
+        mnemonic
+      } : undefined
     }
   }
 };
