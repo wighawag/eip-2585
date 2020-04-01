@@ -146,10 +146,6 @@ contract Forwarder is NonceStrategy {
     }
 
     function _isValidChainId(uint256 chainId) internal view returns (bool) {
-        // TODO?
-        // This does not support contentious fork well. The chainId EIP-1334 is not great for that.
-        // A propoer solution would involve caching past chainId so past message can still be included after hard fork
-        // For that the best solution would be using EIP-1965
         uint256 _chainId;
         assembly {_chainId := chainid() }
         return chainId == _chainId;
