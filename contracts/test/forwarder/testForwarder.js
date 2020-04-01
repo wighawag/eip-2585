@@ -25,8 +25,9 @@ describe("Forwarder", () => {
     // construct message
     const {data} = await receiverContract.populateTransaction.doSomething(metaUserWallet.address, 'hello');
     const message = {
+      from: metaUserWallet.address,
+      to: receiverContract.address,
       chainId: 31337,
-      target: receiverContract.address,
       nonceStrategy: zeroAddress,
       nonce: '0x0000000000000000000000000000000000000000000000000000000000000000',
       data,
@@ -36,14 +37,13 @@ describe("Forwarder", () => {
     // generate signature
     const signature = await signMessage(
       metaUserWallet,
-      ['address', 'uint256', 'address',       'bytes', 'bytes', 'bytes32'],
-      ['target',  'chainId', 'nonceStrategy', 'nonce', 'data',  'extraDataHash'],
+      ['address', 'address', 'uint256', 'address',       'bytes', 'bytes', 'bytes32'],
+      ['from',    'to',      'chainId', 'nonceStrategy', 'nonce', 'data',  'extraDataHash'],
       message
     );
     
     // send transaction
     const receipt = await sendTxAndWait({from: relayer}, 'Forwarder', 'forward', // abiEvents option to merge events abi for parsing receipt
-      metaUserWallet.address,
       message,
       0,
       signature
@@ -67,8 +67,9 @@ describe("EIP712Forwarder", () => {
     // construct message
     const {data} = await receiverContract.populateTransaction.doSomething(metaUserWallet.address, 'hello');
     const message = {
+      from: metaUserWallet.address,
+      to: receiverContract.address,
       chainId: 31337,
-      target: receiverContract.address,
       nonceStrategy: zeroAddress,
       nonce: '0x0000000000000000000000000000000000000000000000000000000000000000',
       data,
@@ -82,9 +83,9 @@ describe("EIP712Forwarder", () => {
           {name: 'name', type: 'string'},
           {name: 'version', type: 'string'}
         ],
-        // "MetaTransaction(address target,uint256 chainId,address nonceStrategy,bytes nonce,bytes data,bytes32 extraDataHash)"
         MetaTransaction: [
-          {name: 'target', type: 'address'},
+          {name: 'from', type: 'address'},
+          {name: 'to', type: 'address'},
           {name: 'chainId', type: 'uint256'},
           {name: 'nonceStrategy', type: 'address'},
           {name: 'nonce', type: 'bytes'},
@@ -103,7 +104,6 @@ describe("EIP712Forwarder", () => {
     
     // send transaction
     const receipt = await sendTxAndWait({from: relayer}, 'EIP712Forwarder', 'forward', // abiEvents option to merge events abi for parsing receipt
-      metaUserWallet.address,
       message,
       0,
       signature
