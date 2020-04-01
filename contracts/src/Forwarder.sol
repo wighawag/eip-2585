@@ -14,7 +14,6 @@ interface NonceStrategy {
     function checkAndUpdateNonce(address signer, bytes calldata nonce) external returns (bool);
 
     // function to get nonce is not part of the standard as this might different depending of which strategy is used (batch nonce vs simplenonce for example)
-    // function getNonce(address signer) external returns (bytes memory);
 }
 
 library SigUtil {
@@ -131,27 +130,6 @@ contract Forwarder is NonceStrategy {
     }
 
     // /////////////////////////////////// REPLAY PROTECTION /////////////////////////////////////
-
-    // mapping(address => uint256) _nonces;
-    
-    // /// @notice implement a default nonce stategy
-    // /// @param signer address to check and update nonce for
-    // /// @param nonce value of nonce sent as part of the forward call
-    // function checkAndUpdateNonce(address signer, bytes memory nonce) public override returns (bool) {
-    //     // TODO? default nonce strategy could be different (maybe the most versatile : batchId + Nonce)
-    //     uint256 value = abi.decode(nonce, (uint256));
-    //     uint256 currentNonce = _nonces[signer];
-    //     if (value == currentNonce) {
-    //         _nonces[signer] = currentNonce + 1;
-    //         return true;
-    //     }
-    //     return false;
-    // }
-
-    // function getNonce(address signer) public returns (bytes memory) {
-    //     return abi.encode(_nonces[signer]);
-    // }
-
     mapping(address => mapping(uint128 => uint128)) _batches;
 
     /// @notice implement a default nonce stategy
