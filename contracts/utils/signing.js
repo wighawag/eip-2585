@@ -1,6 +1,8 @@
 const ethers = require('ethers');
 const {solidityKeccak256, arrayify} = ethers.utils;
 const ethSigUtil = require('eth-sig-util');
+// console.log(ethSigUtil.Ty);
+console.log(ethSigUtil.TypedDataUtils)
 
 module.exports = {
   async signMessage(wallet, types, namesOrValues, message) {
@@ -17,15 +19,18 @@ module.exports = {
     return signature;
   },
   createEIP712Signer({types, domain, primaryType}) {
-    return (wallet, message) => {
-      return ethSigUtil.signTypedData(Buffer.from(wallet.privateKey.slice(2), 'hex'), {
-        data: {
-          types,
-          domain,
-          primaryType,
-          message
-        }
-      });
+    return {
+      sign :(wallet, message) => {
+        return ethSigUtil.signTypedData(Buffer.from(wallet.privateKey.slice(2), 'hex'), {
+          data: {
+            types,
+            domain,
+            primaryType,
+            message
+          }
+        });
+      },
+      hash : (message) => '0x' + ethSigUtil.TypedDataUtils.sign({types, domain, primaryType, message}).toString('hex')//ethSigUtil.typedSignatureHash({types, domain, primaryType, message})
     }
   }
 };

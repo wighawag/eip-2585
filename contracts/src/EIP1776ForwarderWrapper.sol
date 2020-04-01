@@ -102,7 +102,7 @@ contract EIP1776ForwarderWrapper {
 
     function _ensureCorrectCallParams(bytes32 expectedHash, CallParams memory callParams) internal view {
         bytes memory dataToHash = _encodeMessage(callParams);
-        require(keccak256(dataToHash) == expectedHash, "invalid call params");
+        require(keccak256(dataToHash) == expectedHash, "call params not matching");
     }
 
     function _charge(
