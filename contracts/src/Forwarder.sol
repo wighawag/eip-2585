@@ -12,7 +12,9 @@ interface ERC1654 {
 interface NonceStrategy {
     // TODO? instead of return bool, we could throw on failure
     function checkAndUpdateNonce(address signer, bytes calldata nonce) external returns (bool);
-    function getNonce(address signer) external returns (bytes memory);
+
+    // function to get nonce is not part of the standard as this might different depending of which strategy is used (batch nonce vs simplenonce for example)
+    // function getNonce(address signer) external returns (bytes memory);
 }
 
 library SigUtil {
@@ -95,37 +97,6 @@ contract Forwarder is NonceStrategy {
         require(success, string(returnData));
     }
 
-    /// @notice implement a default nonce stategy
-    /// @param signer address to check and update nonce for
-    /// @param nonce value of nonce sent as part of the forward call
-    function checkAndUpdateNonce(address signer, bytes memory nonce) public override returns (bool) {
-        // TODO? default nonce strategy could be different (maybe the most versatile : batchId + Nonce)
-        uint256 value = abi.decode(nonce, (uint256));
-        uint256 currentNonce = _nonces[signer];
-        if (value == currentNonce) {
-            _nonces[signer] = currentNonce + 1;
-            return true;
-        }
-        return false;
-    }
-
-    function getNonce(address signer) public override returns (bytes memory) {
-        return abi.encode(_nonces[signer]);
-    }
-
-    /*
-    mapping(address => mapping(uint256 => uint256)) batches;
-
-    // params :
-    uint256 batchId;
-    uint256 batchNonce;
-
-    // checks:
-    require(batches[callData.from][callParams.batchId] + 1 == callParams.batchNonce, "batchNonce out of order");
-
-    // perform
-    batches[callData.from][callParams.batchId] = callParams.batchNonce;
-    */
 
     // ///////////////////////////////// INTERNAL ////////////////////////////////////////////
 
@@ -159,7 +130,49 @@ contract Forwarder is NonceStrategy {
         );
     }
 
-    // /////////////////////////////////// STORAGE /////////////////////////////////////
+    // /////////////////////////////////// REPLAY PROTECTION /////////////////////////////////////
 
-    mapping(address => uint256) _nonces;
+    // mapping(address => uint256) _nonces;
+    
+    // /// @notice implement a default nonce stategy
+    // /// @param signer address to check and update nonce for
+    // /// @param nonce value of nonce sent as part of the forward call
+    // function checkAndUpdateNonce(address signer, bytes memory nonce) public override returns (bool) {
+    //     // TODO? default nonce strategy could be different (maybe the most versatile : batchId + Nonce)
+    //     uint256 value = abi.decode(nonce, (uint256));
+    //     uint256 currentNonce = _nonces[signer];
+    //     if (value == currentNonce) {
+    //         _nonces[signer] = currentNonce + 1;
+    //         return true;
+    //     }
+    //     return false;
+    // }
+
+    // function getNonce(address signer) public returns (bytes memory) {
+    //     return abi.encode(_nonces[signer]);
+    // }
+
+    mapping(address => mapping(uint128 => uint128)) _batches;
+
+    /// @notice implement a default nonce stategy
+    /// @param signer address to check and update nonce for
+    /// @param nonce value of nonce sent as part of the forward call
+    function checkAndUpdateNonce(address signer, bytes memory nonce) public override returns (bool) {
+        // TODO? default nonce strategy could be different (maybe the most versatile : batchId + Nonce)
+        uint256 value = abi.decode(nonce, (uint256));
+        uint128 batchId = uint128(value >> 128);
+        uint128 batchNonce = uint128(value % 2**128);
+
+        uint128 currentNonce = _batches[signer][batchId];
+        if (batchNonce == currentNonce) {
+            _batches[signer][batchId] = currentNonce + 1;
+            return true;
+        }
+        return false;
+    }
+
+    function getNonce(address signer, uint128 batchId) external view returns (bytes memory) {
+        return abi.encode(_batches[signer][batchId]);
+    }
+
 }
