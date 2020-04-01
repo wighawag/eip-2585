@@ -138,8 +138,11 @@ contract Forwarder is NonceStrategy {
     }
 
     function _encodeMessage(Message memory message) internal pure returns (bytes memory) {
-        // TODO
-        return abi.encode(message.target, message.chainId, message.nonceStrategy, message.nonce, message.data, message.extraDataHash);
+        return SigUtil.eth_sign_prefix(
+            keccak256(
+                abi.encodePacked(message.target, message.chainId, message.nonceStrategy, message.nonce, message.data, message.extraDataHash)
+            )
+        );
     }
 
     // /////////////////////////////////// STORAGE /////////////////////////////////////
