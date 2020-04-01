@@ -14,7 +14,7 @@ module.exports = {
     // users: "from:2"
   },
   solc: {
-      version: '0.6.1',
+      version: '0.6.4',
       optimizer: {
           enabled: true,
           runs: 200

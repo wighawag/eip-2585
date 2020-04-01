@@ -1,4 +1,4 @@
-pragma solidity 0.6.1;
+pragma solidity 0.6.4;
 pragma experimental ABIEncoderV2;
 
 interface ERC1271 {
@@ -76,7 +76,7 @@ contract Forwarder is NonceStrategy {
         Message memory message,
         SignatureType signatureType,
         bytes memory signature
-    ) public { // external seems to not be supported when ABIEncoderV2 Struct are used
+    ) public { // external is not supported in solidity < 0.6.4 when ABIEncoderV2 Struct are used
         require(_isValidChainId(message.chainId), "INVALID_CHAIN_ID");
         _checkSigner(from, message, signatureType, signature);
 
