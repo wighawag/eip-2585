@@ -160,6 +160,7 @@ describe("EIP1776ForwarderWrapper", () => {
       relayer: zeroAddress
     };
     const wrapper_hash = wrapper_eip712Signer.hash(wrapper_params);
+    // MAKE IT FAIL : wrapper_params.amount = 1;
     
     // construct message
     const {data} = await receiverContract.populateTransaction.doSomething(metaUserWallet.address, 'hello');
