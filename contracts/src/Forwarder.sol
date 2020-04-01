@@ -1,4 +1,5 @@
 pragma solidity 0.6.1;
+pragma experimental ABIEncoderV2;
 
 interface ERC1271 {
     function isValidSignature(bytes calldata data, bytes calldata signature) external view returns (bytes4 magicValue);
@@ -34,74 +35,59 @@ library SigUtil {
         recovered = ecrecover(hash, v, r, s);
         require(recovered != address(0), "SIGNATURE_ZERO_ADDRESS");
     }
+
+    function eth_sign_prefix(bytes32 hash) internal pure returns (bytes memory) {
+        return abi.encodePacked("\x19Ethereum Signed Message:\n32", hash);
+    }
 }
 
 /// @notice Forwarder for Meta Transactions
 contract Forwarder is NonceStrategy {
+
+    // //////////////////////////////// TYPES AND CONSTANTS ////////////////////////////
     bytes4 internal constant ERC1271_MAGICVALUE = 0x20c13b0b;
     bytes4 internal constant ERC1654_MAGICVALUE = 0x1626ba7e;
 
     enum SignatureType { DIRECT, EIP1654, EIP1271 }
 
+    struct Message {
+        uint256 chainId;
+        address target;
+        address nonceStrategy;
+        bytes nonce;
+        bytes data;
+        bytes32 extraDataHash;
+	}
+
+    // ///////////////////////////// EXTERNAL INTERFACE ///////////////////////////////////
+
     /// @notice forward call from EOA signed message
     /// @param from address from which the message come from (For EOA this is the same as signer)
-    /// @param target target of the call
-    /// @param nonceStrategy contract address that check and update nonce
-    /// @param nonce nonce value
-    /// @param data call data
-    /// @param extraDataHash extra data hashed that can be used as embedded message for implementing more complex scenario, with one sig
+    /// @param message.target target of the call
+    /// @param message.nonceStrategy contract address that check and update nonce
+    /// @param message.nonce nonce value
+    /// @param message.data call data
+    /// @param message.extraDataHash extra data hashed that can be used as embedded message for implementing more complex scenario, with one sig
     /// @param signatureType signatureType either EOA, EIP1271 or EIP1654
     /// @param signature signature
     function forward(
         address from,
-        address target,
-        address nonceStrategy,
-        bytes calldata nonce,
-        bytes calldata data,
-        bytes32 extraDataHash,
-        SignatureType signatureType,
-        bytes calldata signature
-    ) external {
-        _checkSigner(from, target, nonceStrategy, nonce, data, extraDataHash, signatureType, signature);
-        if (nonceStrategy == address(0) || nonceStrategy == address(this)) { // optimization to avoid call if using default nonce strategy
-            require(checkAndUpdateNonce(from, nonce), "NONCE_INVALID");
-        } else {
-            require(NonceStrategy(nonceStrategy).checkAndUpdateNonce(from, nonce), "NONCE_INVALID");
-        }
-        (bool success, bytes memory returnData) = target.call(abi.encodePacked(data, from));
-        require(success, string(returnData));
-    }
-
-    function _checkSigner(
-        address from,
-        address target,
-        address nonceStrategy,
-        bytes memory nonce,
-        bytes memory data,
-        bytes32 extraDataHash,
+        Message memory message,
         SignatureType signatureType,
         bytes memory signature
-    ) internal view returns (address) {
-        bytes memory dataToHash = _encodeMessage(target, nonceStrategy, nonce, data, extraDataHash);
-        if (signatureType == SignatureType.EIP1271) {
-            require(ERC1271(from).isValidSignature(dataToHash, signature) == ERC1271_MAGICVALUE, "SIGNATURE_1271_INVALID");
-        } else if(signatureType == SignatureType.EIP1654){
-            require(ERC1654(from).isValidSignature(keccak256(dataToHash), signature) == ERC1654_MAGICVALUE, "SIGNATURE_1654_INVALID");
-        } else {
-            address signer = SigUtil.recover(keccak256(dataToHash), signature);
-            require(signer == from, "SIGNATURE_WRONG_SIGNER");
-        }
-    }
+    ) public { // external seems to not be supported when ABIEncoderV2 Struct are used
+        require(_isValidChainId(message.chainId), "INVALID_CHAIN_ID");
+        _checkSigner(from, message, signatureType, signature);
 
-    function _encodeMessage(
-        address target,
-        address nonceStrategy,
-        bytes memory nonce,
-        bytes memory data,
-        bytes32 extraDataHash
-    ) internal view returns (bytes memory) {
-        // TODO
-        return abi.encode(target, nonceStrategy, nonce, data, extraDataHash);
+        // optimization to avoid call if using default nonce strategy
+        // this contract implements a default nonce strategy and can be called directly
+        if (message.nonceStrategy == address(0) || message.nonceStrategy == address(this)) {
+            require(checkAndUpdateNonce(from, message.nonce), "NONCE_INVALID");
+        } else {
+            require(NonceStrategy(message.nonceStrategy).checkAndUpdateNonce(from, message.nonce), "NONCE_INVALID");
+        }
+        (bool success, bytes memory returnData) = message.target.call(abi.encodePacked(message.data, from));
+        require(success, string(returnData));
     }
 
     /// @notice implement a default nonce stategy
@@ -116,6 +102,41 @@ contract Forwarder is NonceStrategy {
         }
         return false;
     }
+
+    // ///////////////////////////////// INTERNAL ////////////////////////////////////////////
+
+    function _checkSigner(
+        address from,
+        Message memory message,
+        SignatureType signatureType,
+        bytes memory signature
+    ) internal view returns (address) {
+        bytes memory dataToHash = _encodeMessage(message);
+        if (signatureType == SignatureType.EIP1271) {
+            require(ERC1271(from).isValidSignature(dataToHash, signature) == ERC1271_MAGICVALUE, "SIGNATURE_1271_INVALID");
+        } else if(signatureType == SignatureType.EIP1654){
+            require(ERC1654(from).isValidSignature(keccak256(dataToHash), signature) == ERC1654_MAGICVALUE, "SIGNATURE_1654_INVALID");
+        } else {
+            address signer = SigUtil.recover(keccak256(dataToHash), signature);
+            require(signer == from, "SIGNATURE_WRONG_SIGNER");
+        }
+    }
+
+    function _isValidChainId(uint256 chainId) internal view returns (bool) {
+        // This does not support contentious fork well. The chainId EIP-1334 is not great for that.
+        // A propoer solution would involve caching past chainId so past message can still be included after hard fork
+        // For that the best solution would be using EIP-1965
+        uint256 _chainId;
+        assembly {_chainId := chainid() }
+        return chainId == _chainId;
+    }
+
+    function _encodeMessage(Message memory message) internal pure returns (bytes memory) {
+        // TODO
+        return abi.encode(message.target, message.chainId, message.nonceStrategy, message.nonce, message.data, message.extraDataHash);
+    }
+
+    // /////////////////////////////////// STORAGE /////////////////////////////////////
 
     mapping(address => uint256) _nonces;
 }
