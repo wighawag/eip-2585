@@ -11,7 +11,7 @@ module.exports = {
       // TODO per chain
     deployer: 0,
     relayer: '0x7B7cd3876EC83efa98CbB251C3C0526eb355EA55',
-    // users: "from:2"
+    others: "from:2"
   },
   solc: {
       version: '0.6.4',
