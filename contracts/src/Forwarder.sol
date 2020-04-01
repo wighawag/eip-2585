@@ -87,6 +87,9 @@ contract Forwarder is NonceStrategy {
         } else {
             require(NonceStrategy(message.nonceStrategy).checkAndUpdateNonce(from, message.nonce), "NONCE_INVALID");
         }
+
+        // TODO? allow the forwarder (calling forward) to pass msg.value on behalf of the message signer ?
+        // if so we could simply use the msg.value as part of the message (no need to pass it in in the struct)
         (bool success, bytes memory returnData) = message.target.call(abi.encodePacked(message.data, from));
         require(success, string(returnData));
     }
