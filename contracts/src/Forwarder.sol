@@ -10,6 +10,7 @@ interface ERC1654 {
 }
 
 interface NonceStrategy {
+    // TODO? instead of return bool, we could throw on failure
     function checkAndUpdateNonce(address signer, bytes calldata nonce) external returns (bool);
 }
 
@@ -94,6 +95,7 @@ contract Forwarder is NonceStrategy {
     /// @param signer address to check and update nonce for
     /// @param nonce value of nonce sent as part of the forward call
     function checkAndUpdateNonce(address signer, bytes memory nonce) override public returns (bool) {
+        // TODO? default nonce strategy could be different (maybe the most versatile : batchId + Nonce)
         uint256 value = abi.decode(nonce, (uint256));
         uint256 currentNonce = _nonces[signer];
         if (value == currentNonce) {
@@ -123,6 +125,7 @@ contract Forwarder is NonceStrategy {
     }
 
     function _isValidChainId(uint256 chainId) internal view returns (bool) {
+        // TODO?
         // This does not support contentious fork well. The chainId EIP-1334 is not great for that.
         // A propoer solution would involve caching past chainId so past message can still be included after hard fork
         // For that the best solution would be using EIP-1965
