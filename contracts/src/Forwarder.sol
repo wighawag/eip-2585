@@ -137,7 +137,7 @@ contract Forwarder is NonceStrategy {
         return chainId == _chainId;
     }
 
-    function _encodeMessage(Message memory message) internal pure returns (bytes memory) {
+    function _encodeMessage(Message memory message) internal virtual pure returns (bytes memory) {
         return SigUtil.eth_sign_prefix(
             keccak256(
                 abi.encodePacked(message.target, message.chainId, message.nonceStrategy, message.nonce, message.data, message.extraDataHash)
