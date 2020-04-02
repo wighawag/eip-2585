@@ -2,7 +2,7 @@ const { deployments, namedAccounts } = require('@nomiclabs/buidler');
 const {expectRevert, zeroAddress} = require('../../utils/testHelpers');
 
 const {createWallet, instantiateContract} = require('../../utils');
-const {signMessage, createEIP712Signer} = require('../../utils/signing');
+const {signMessage, createEIP712Signer, abiEncode} = require('../../utils/signing');
 
 const {sendTxAndWait} = deployments;
 const {deployer, others} = namedAccounts;
@@ -169,7 +169,7 @@ describe("EIP1776ForwarderWrapper", () => {
       to: receiverContract.address,
       chainId: 31337,
       nonceStrategy: zeroAddress,
-      nonce: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      nonce: abiEncode(['uint256'], [0]), // '0x0000000000000000000000000000000000000000000000000000000000000000'
       data,
       extraDataHash: wrapper_hash
     };

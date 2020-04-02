@@ -81,7 +81,6 @@ contract Forwarder is NonceStrategy {
     ) public { // external is not supported in solidity < 0.6.4 when ABIEncoderV2 Struct are used
         require(_isValidChainId(message.chainId), "INVALID_CHAIN_ID");
         _checkSigner(message, signatureType, signature);
-
         // optimization to avoid call if using default nonce strategy
         // this contract implements a default nonce strategy and can be called directly
         if (message.nonceStrategy == address(0) || message.nonceStrategy == address(this)) {
@@ -149,8 +148,8 @@ contract Forwarder is NonceStrategy {
         return false;
     }
 
-    function getNonce(address signer, uint128 batchId) external view returns (bytes memory) {
-        return abi.encode(_batches[signer][batchId]);
+    function getNonce(address signer, uint128 batchId) external view returns (uint128) {
+        return _batches[signer][batchId];
     }
 
 }

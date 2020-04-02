@@ -16,6 +16,7 @@
   "dependencies": {
     "compression": "^1.7.1",
     "cross-env": "^6.0.3",
+    "eth-sig-util": "^2.5.3",
     "ethers": "^5.0.0-beta.177",
     "polka": "next",
     "sirv": "^0.4.0",

@@ -6,6 +6,8 @@ import WalletWrapper from '../components/WalletWrapper';
 import account from '../stores/account';
 import * as ethers from 'ethers';
 import {pause} from '../utils/time'
+import {TypedDataUtils} from 'eth-sig-util';
+const zeroAddress = '0x0000000000000000000000000000000000000000';
 
 const { Wallet, Contract, BigNumber, AbiCoder } = ethers;
 
@@ -227,49 +229,71 @@ async function transferFirstNumber() {
 async function purchaseNumber() {
 	const saleAddress = wallet.getContract('MTXNumberSale').address;
 	const mtxAddress = wallet.getContract('MTX').address;
-	const metaTxProcessorContract = wallet.getContract('GenericMetaTxProcessor');
-	const metaTxProcessorAddress = metaTxProcessorContract.address;
+	const EIP1776ForwarderWrapperContract = wallet.getContract('EIP1776ForwarderWrapper');
+	const metaTxProcessorAddress = EIP1776ForwarderWrapperContract.address;
 	const txData = await wallet.computeData('MTXNumberSale', 'purchase', $wallet.address, $wallet.address);
-	const nonce = purchase_nonce ? BigNumber.from(purchase_nonce) :await wallet.call('GenericMetaTxProcessor', 'meta_nonce', $wallet.address, purchase_batchId);
-
-	const message = {
-      from: $wallet.address,
-	  to: saleAddress,
-	  tokenContract: mtxAddress,
+	const nonce = purchase_nonce ? BigNumber.from(purchase_nonce) : await wallet.call('EIP712Forwarder', 'getNonce', $wallet.address, purchase_batchId);
+	const batchNonce = nonce; // TODO // for now only batch 0
+	
+	const wrapper_message = {
+      tokenContract: mtxAddress,
 	  amount: BigNumber.from(purchase_amount).mul('1000000000000000000').toString(),
-	  data: txData.data,
-	  batchId: purchase_batchId,
-	  batchNonce: nonce.add(1).toHexString(),
 	  expiry: purchase_expiry,
 	  txGas: purchase_txGas,
 	  baseGas: 100000,
 	  tokenGasPrice: BigNumber.from(purchase_tokenGasPrice * 1000000000).mul('1000000000').toString(), // TODO use decimals
 	  relayer: purchase_relayer,
 	}
-	const msgParams = JSON.stringify({types:{
-      EIP712Domain:[
-        {name:"name",type:"string"},
-        {name:"version",type:"string"},
-        {name:"verifyingContract",type:"address"}
-      ],
-      ERC20MetaTransaction:[
-		{name:"from",type:"address"},
-		{name:"to",type:"address"},
-		{name:"tokenContract",type:"address"},
-		{name:"amount",type:"uint256"},
-		{name:"data",type:"bytes"},
-		{name:"batchId",type:"uint256"},
-		{name:"batchNonce",type:"uint256"},
-		{name:"expiry",type:"uint256"},
-		{name:"txGas",type:"uint256"},
-		{name:"baseGas",type:"uint256"},
-		{name:"tokenGasPrice",type:"uint256"},
-        {name:"relayer",type:"address"}
-      ],
-    },
-    primaryType:"ERC20MetaTransaction",
-    domain:{name:"Generic Meta Transaction",version:"1",verifyingContract: metaTxProcessorAddress},
-	message
+	const wrapper_hash = '0x' + TypedDataUtils.sign({
+		types:{
+			EIP712Domain:[
+				{name:"name",type:"string"},
+				{name:"version",type:"string"},
+				{name:"verifyingContract",type:"address"}
+			],
+			ERC20MetaTransaction:[
+				{name:"tokenContract",type:"address"},
+				{name:"amount",type:"uint256"},
+				{name:"expiry",type:"uint256"},
+				{name:"txGas",type:"uint256"},
+				{name:"baseGas",type:"uint256"},
+				{name:"tokenGasPrice",type:"uint256"},
+				{name:"relayer",type:"address"}
+			],
+		},
+		primaryType:"ERC20MetaTransaction",
+		domain:{name:"Generic Meta Transaction",version:"1",verifyingContract: metaTxProcessorAddress},
+		message: wrapper_message
+	}).toString('hex');
+
+	const message = {
+      from: $wallet.address,
+	  to: saleAddress,
+	  chainId: 31337, 
+	  nonceStrategy: zeroAddress, 
+	  nonce: ethers.utils.defaultAbiCoder.encode(['uint256'], [batchNonce]),
+	  data: txData.data,
+	  extraDataHash: wrapper_hash
+	};
+	const msgParams = JSON.stringify({
+		types:{
+			EIP712Domain:[
+				{name:"name",type:"string"},
+				{name:"version",type:"string"}
+			],
+			MetaTransaction:[
+				{name: 'from', type: 'address'},
+				{name: 'to', type: 'address'},
+				{name: 'chainId', type: 'uint256'},
+				{name: 'nonceStrategy', type: 'address'},
+				{name: 'nonce', type: 'bytes'},
+				{name: 'data', type: 'bytes'},
+				{name: 'extraDataHash', type: 'bytes32'},
+			],
+    	},
+		primaryType:"MetaTransaction",
+		domain:{name:"Forwarder",version:"1"},
+		message
 	});
 	
 	let response;
@@ -288,7 +312,7 @@ async function purchaseNumber() {
 	await pause(0.4);
 	const provider = relayer.getProvider();
 	const relayerWallet = new Wallet($relayer.privateKey).connect(provider);
-	const metaTxProcessor = new Contract(metaTxProcessorContract.address, metaTxProcessorContract.abi, relayerWallet);
+	const metaTxProcessor = new Contract(EIP1776ForwarderWrapperContract.address, EIP1776ForwarderWrapperContract.abi, relayerWallet);
 
 	const currentBalance = await provider.getBalance(relayerWallet.address);
 	if (currentBalance.lt('1000000000000000')) {
@@ -305,48 +329,34 @@ async function purchaseNumber() {
 		return false;
 	}
 	// await pause(0.4);
-	if (message.relayer.toLowerCase() != '0x0000000000000000000000000000000000000000' && message.relayer.toLowerCase() != $relayer.address.toLowerCase()) {
-		$metatx = {status: 'error', message: 'Relayer will not execute it as the message is destined to another relayer'};
+	if (wrapper_message.relayer.toLowerCase() != '0x0000000000000000000000000000000000000000' && wrapper_message.relayer.toLowerCase() != $relayer.address.toLowerCase()) {
+		$metatx = {status: 'error', wrapper_message: 'Relayer will not execute it as the message is destined to another relayer'};
 		return false;
 	} 
 
-	if(message.expiry <  Date.now() /1000 ) {
-		$metatx = {status: 'error', message: 'Relayer will not execute it as the expiry time is in the past'};
+	if(wrapper_message.expiry <  Date.now() /1000 ) {
+		$metatx = {status: 'error', wrapper_message: 'Relayer will not execute it as the expiry time is in the past'};
 		return false;
-	}else if(message.expiry <  Date.now() / 1000 - 60) {
-		$metatx = {status: 'error', message: 'Relayer will not execute it as the expiry time is too short'};
+	}else if(wrapper_message.expiry <  Date.now() / 1000 - 60) {
+		$metatx = {status: 'error', wrapper_message: 'Relayer will not execute it as the expiry time is too short'};
 		return false;
 	}
 
-	const actualMetaNonce = await wallet.call('GenericMetaTxProcessor', 'meta_nonce', $wallet.address, purchase_batchId);
-	const expectedBatchNonce = actualMetaNonce.add(1).toHexString();
-	if (expectedBatchNonce != message.batchNonce) {
+	const actualMetaNonce = await wallet.call('EIP712Forwarder', 'getNonce', $wallet.address, purchase_batchId);
+	const expectedBatchNonce = actualMetaNonce.toHexString();
+	if (expectedBatchNonce != batchNonce.toHexString()) {
 		$metatx = {status: 'error', message: 'Relayer will not execute it as the message has the wrong nonce'};
 		return false;
 	}
-	console.log(expectedBatchNonce, message.batchNonce);
+	console.log(expectedBatchNonce, batchNonce);
 
 	let tx 
 	try {
 		tx = await metaTxProcessor.executeMetaTransaction(
-			{
-				from: message.from,
-				to: message.to,
-				data: message.data,
-				signature: response,
-				signatureType: 0
-			},
-			{
-				tokenContract: message.tokenContract,
-				amount: message.amount,
-				batchId: message.batchId,
-        		batchNonce: message.batchNonce,
-        		expiry: message.expiry,
-        		txGas: message.txGas,
-        		baseGas: message.baseGas,
-        		tokenGasPrice: message.tokenGasPrice,
-        		relayer: message.relayer,
-			},
+			message,
+			0,
+			response,
+			wrapper_message,
 			relayerWallet.address,
 			{gasLimit: BigNumber.from('2000000'), chainId: relayer.getChainIdToUse()}
 		);
@@ -369,8 +379,8 @@ async function purchaseNumber() {
 		return false;
 	}
 	const metaTxEvent = receipt.events.find((event) => event.event === 'MetaTx' && event.address === metaTxProcessor.address);
-	if (!metaTxEvent.args[2]){
-		const errorString = errorToAscii(metaTxEvent.args[3]);
+	if (!metaTxEvent.args[1]){
+		const errorString = errorToAscii(metaTxEvent.args[2]);
 		$metatx = {status: 'error', message: 'MetaTx Mined but Error: ' + errorString};
 		return false;
 	}

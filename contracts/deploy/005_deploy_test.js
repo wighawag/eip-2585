@@ -3,7 +3,7 @@ module.exports = async ({namedAccounts, deployments}) => {
     const {deployIfDifferent, log} = deployments;
     const {deployer} = namedAccounts;
 
-    let processor = deployments.get('GenericMetaTxProcessor');
+    let processor = deployments.get('EIP712Forwarder');
     let contract = deployments.get('ExampleReceiver');
     if (!contract) {
         const deployResult = await deployIfDifferent(['data'], "ExampleReceiver",  {from: deployer, gas: 4000000}, "ExampleReceiver", processor.address);

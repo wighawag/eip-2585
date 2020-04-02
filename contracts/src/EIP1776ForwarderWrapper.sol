@@ -132,10 +132,13 @@ contract EIP1776ForwarderWrapper {
     ) internal returns (bool, bytes memory) {
         try _forwarder.forward{gas: gasLimit}(message, signatureType, signature) {
         } catch (bytes memory returnData) {
+            assert(gasleft() > gasLimit / 63); // not enough gas provided, assert to throw all gas // TODO use EIP-1930
             return (false, returnData);
         }
-        assert(gasleft() > gasLimit / 63); // not enough gas provided, assert to throw all gas // TODO use EIP-1930
         return (true, "");
+        // (bool success, bytes memory returnData) = address(_forwarder).call.gas(gasLimit)(abi.encodeWithSignature("forward(Message,SignatureType,signature)", message, signatureType, signature));
+        // assert(gasleft() > gasLimit / 63); // not enough gas provided, assert to throw all gas // TODO use EIP-1930
+        // return (success, returnData);
     }
 
     function _transferAndChargeForGas(

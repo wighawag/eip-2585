@@ -1,8 +1,6 @@
 const ethers = require('ethers');
 const {solidityKeccak256, arrayify} = ethers.utils;
 const ethSigUtil = require('eth-sig-util');
-// console.log(ethSigUtil.Ty);
-console.log(ethSigUtil.TypedDataUtils)
 
 module.exports = {
   async signMessage(wallet, types, namesOrValues, message) {
@@ -32,5 +30,11 @@ module.exports = {
       },
       hash : (message) => '0x' + ethSigUtil.TypedDataUtils.sign({types, domain, primaryType, message}).toString('hex')//ethSigUtil.typedSignatureHash({types, domain, primaryType, message})
     }
-  }
+  },
+  abiEncode(types, values) {
+    return ethers.utils.defaultAbiCoder.encode(types, values);
+  },
+  abiDecode(types, data) {
+    return ethers.utils.defaultAbiCoder.decode(types, data);
+  },
 };
