@@ -12,3 +12,4 @@ module.exports = async ({namedAccounts, deployments}) => {
         }
     }
 }
+module.exports.tags = ['DAI'];

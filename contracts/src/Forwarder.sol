@@ -78,7 +78,7 @@ contract Forwarder is NonceStrategy {
         Message memory message,
         SignatureType signatureType,
         bytes memory signature
-    ) public { // external is not supported in solidity < 0.6.4 when ABIEncoderV2 Struct are used
+    ) public { // external with ABIEncoderV2 Struct is not supported in solidity < 0.6.4
         require(_isValidChainId(message.chainId), "INVALID_CHAIN_ID");
         _checkSigner(message, signatureType, signature);
         // optimization to avoid call if using default nonce strategy
@@ -93,6 +93,51 @@ contract Forwarder is NonceStrategy {
         // if so we could simply use the msg.value as part of the message (no need to pass it in in the struct)
         (bool success, bytes memory returnData) = message.to.call(abi.encodePacked(message.data, message.from));
         require(success, string(returnData));
+    }
+
+
+    // /////////////////////////////////// BATCH CALL /////////////////////////////////////
+    struct Call {
+        address to;
+        bytes data;
+    }
+    /// @notice batcher function that can be called as part of a meta transaction (allowing to batch call atomically)
+    function batch(Call[] memory calls) public { // external with ABIEncoderV2 Struct is not supported in solidity < 0.6.4
+        require(msg.sender == address(this), "FORWARDER_ONLY");
+        address signer;
+        bytes memory data = msg.data;
+        uint256 length = msg.data.length;
+        assembly { signer := and(mload(sub(add(data, length), 0x00)), 0xffffffffffffffffffffffffffffffffffffffff) }
+        for(uint256 i = 0; i < calls.length; i++) {
+            (bool success, bytes memory returnData) = calls[i].to.call(abi.encodePacked(calls[i].data, signer));
+            if (!success) {
+                revert(string(returnData)); // abort on first failure
+            }
+        }
+    }
+
+    // /////////////////////////////////// REPLAY PROTECTION /////////////////////////////////////
+    mapping(address => mapping(uint128 => uint128)) _batches;
+
+    /// @notice implement a default nonce stategy
+    /// @param signer address to check and update nonce for
+    /// @param nonce value of nonce sent as part of the forward call
+    function checkAndUpdateNonce(address signer, bytes memory nonce) public override returns (bool) {
+        // TODO? default nonce strategy could be different (maybe the most versatile : batchId + Nonce)
+        uint256 value = abi.decode(nonce, (uint256));
+        uint128 batchId = uint128(value >> 128);
+        uint128 batchNonce = uint128(value % 2**128);
+
+        uint128 currentNonce = _batches[signer][batchId];
+        if (batchNonce == currentNonce) {
+            _batches[signer][batchId] = currentNonce + 1;
+            return true;
+        }
+        return false;
+    }
+
+    function getNonce(address signer, uint128 batchId) external view returns (uint128) {
+        return _batches[signer][batchId];
     }
 
 
@@ -127,29 +172,4 @@ contract Forwarder is NonceStrategy {
             )
         );
     }
-
-    // /////////////////////////////////// REPLAY PROTECTION /////////////////////////////////////
-    mapping(address => mapping(uint128 => uint128)) _batches;
-
-    /// @notice implement a default nonce stategy
-    /// @param signer address to check and update nonce for
-    /// @param nonce value of nonce sent as part of the forward call
-    function checkAndUpdateNonce(address signer, bytes memory nonce) public override returns (bool) {
-        // TODO? default nonce strategy could be different (maybe the most versatile : batchId + Nonce)
-        uint256 value = abi.decode(nonce, (uint256));
-        uint128 batchId = uint128(value >> 128);
-        uint128 batchNonce = uint128(value % 2**128);
-
-        uint128 currentNonce = _batches[signer][batchId];
-        if (batchNonce == currentNonce) {
-            _batches[signer][batchId] = currentNonce + 1;
-            return true;
-        }
-        return false;
-    }
-
-    function getNonce(address signer, uint128 batchId) external view returns (uint128) {
-        return _batches[signer][batchId];
-    }
-
 }

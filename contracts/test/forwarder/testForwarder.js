@@ -115,7 +115,7 @@ describe("EIP712Forwarder", () => {
 
 describe("EIP1776ForwarderWrapper", () => {
   beforeEach(async () => {
-    await deployments.run(['EIP1776ForwarderWrapper']);
+    await deployments.run(['EIP1776ForwarderWrapper', 'DAI']);
     const forwarderContract = deployments.get('EIP1776ForwarderWrapper');
     await deployments.deploy("ForwarderReceiver",  {from: deployer, gas: 4000000}, "ForwarderReceiver", forwarderContract.address);
   })
@@ -167,6 +167,102 @@ describe("EIP1776ForwarderWrapper", () => {
     const message = {
       from: metaUserWallet.address,
       to: receiverContract.address,
+      chainId: 31337,
+      nonceStrategy: zeroAddress,
+      nonce: abiEncode(['uint256'], [0]), // '0x0000000000000000000000000000000000000000000000000000000000000000'
+      data,
+      extraDataHash: wrapper_hash
+    };
+
+    // generate signature
+    const eip712Signer = createEIP712Signer({
+      types : {
+        EIP712Domain: [
+          {name: 'name', type: 'string'},
+          {name: 'version', type: 'string'}
+        ],
+        MetaTransaction: [
+          {name: 'from', type: 'address'},
+          {name: 'to', type: 'address'},
+          {name: 'chainId', type: 'uint256'},
+          {name: 'nonceStrategy', type: 'address'},
+          {name: 'nonce', type: 'bytes'},
+          {name: 'data', type: 'bytes'},
+          {name: 'extraDataHash', type: 'bytes32'},
+        ]
+      },
+      domain: {
+        name: 'Forwarder',
+        version: '1',
+      },
+      primaryType: 'MetaTransaction',
+    });
+
+    const signature = await eip712Signer.sign(metaUserWallet, message);
+    
+    // send transaction
+    const receipt = await sendTxAndWait({from: relayer}, 'EIP1776ForwarderWrapper', 'executeMetaTransaction', // abiEvents option to merge events abi for parsing receipt
+      message,
+      0,
+      signature,
+      wrapper_params,
+      others[0]
+    );
+
+    // console.log(JSON.stringify(receipt, null, '  '));
+  });
+
+  it("test batch call ", async function() {
+    const EIP1776ForwarderWrapper = deployments.get('EIP1776ForwarderWrapper');
+    const receiver = deployments.get('ForwarderReceiver');
+    const receiverContract = instantiateContract(receiver);
+
+    const wrapper_eip712Signer = createEIP712Signer({
+      types : {
+        EIP712Domain: [
+          {name: 'name', type: 'string'},
+          {name: 'version', type: 'string'},
+          {name: 'verifyingContract', type: 'address'}
+        ],
+        // "ERC20MetaTransaction(address tokenContract,uint256 amount,uint256 expiry,uint256 txGas,uint256 baseGas,uint256 tokenGasPrice,address relayer)"
+        ERC20MetaTransaction: [
+          {name: 'tokenContract', type: 'address'},
+          {name: 'amount', type: 'uint256'},
+          {name: 'expiry', type: 'uint256'},
+          {name: 'txGas', type: 'uint256'},
+          {name: 'baseGas', type: 'uint256'},
+          {name: 'tokenGasPrice', type: 'uint256'},
+          {name: 'relayer', type: 'address'},
+        ]
+      },
+      domain: {
+        name: 'Generic Meta Transaction',
+        version: '1',
+        verifyingContract: EIP1776ForwarderWrapper.address
+      },
+      primaryType: 'ERC20MetaTransaction',
+    });
+    const wrapper_params = {
+      tokenContract: zeroAddress,
+      amount: 0,
+      expiry: 3000000000,
+      txGas: 100000,
+      baseGas: 30000,
+      tokenGasPrice: 0,
+      relayer: zeroAddress
+    };
+    const wrapper_hash = wrapper_eip712Signer.hash(wrapper_params);
+    // MAKE IT FAIL : wrapper_params.amount = 1;
+    
+    // construct batch message
+    const token = instantiateContract(deployments.get('DAI'));
+    const approvalCall = await token.populateTransaction.approve(receiverContract.address, '10000000000000000000');
+    const doSomethingCall = await receiverContract.populateTransaction.doSomething(metaUserWallet.address, 'hello');
+    const forwarder = instantiateContract(deployments.get('EIP712Forwarder'));
+    const {data} = await forwarder.populateTransaction.batch([approvalCall, doSomethingCall]);
+    const message = {
+      from: metaUserWallet.address,
+      to: forwarder.address,
       chainId: 31337,
       nonceStrategy: zeroAddress,
       nonce: abiEncode(['uint256'], [0]), // '0x0000000000000000000000000000000000000000000000000000000000000000'
