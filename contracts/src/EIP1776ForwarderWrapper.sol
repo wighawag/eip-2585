@@ -206,7 +206,7 @@ contract EIP1776ForwarderWrapper {
             if(callParams.amount > 0) {
                 previousBalance = tokenContract.balanceOf(address(this));
                 require(tokenContract.transferFrom(message.from, address(this), callParams.amount), "ERC20_ALLOCATION_FAILED");
-                tokenContract.approve(message.to, callParams.amount);
+                tokenContract.approve(_forwarder, callParams.amount);
             }
             if(callParams.tokenGasPrice > 0) {
                 (success, returnData) = _executeWithSpecificGasAndChargeForIt(
@@ -223,6 +223,7 @@ contract EIP1776ForwarderWrapper {
                 (success, returnData) = _executeWithSpecificGas(message, signatureType, signature, callParams.txGas);
             }
             if(callParams.amount > 0) {
+                // tokenContract.approve(_forwarder, 0); // reset not needed ?
                 uint256 newBalance = tokenContract.balanceOf(address(this));
                 if (newBalance > previousBalance) {
                     require(tokenContract.transfer(message.from, newBalance - previousBalance), "ERC20_REFUND_FAILED");

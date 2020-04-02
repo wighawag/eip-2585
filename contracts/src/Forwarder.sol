@@ -9,6 +9,13 @@ interface ERC1654 {
    function isValidSignature(bytes32 hash, bytes calldata signature) external view returns (bytes4 magicValue);
 }
 
+interface ERC20 {
+    function balanceOf(address who) external view returns (uint256);
+    function transfer(address to, uint256 value) external returns (bool);
+    function transferFrom(address from, address to, uint256 value) external returns (bool);
+    function approve(address spender, uint256 value) external returns (bool);
+}
+
 interface NonceStrategy {
     // TODO? instead of return bool, we could throw on failure
     function checkAndUpdateNonce(address signer, bytes calldata nonce) external returns (bool);
@@ -94,6 +101,61 @@ contract Forwarder is NonceStrategy {
         (bool success, bytes memory returnData) = message.to.call(abi.encodePacked(message.data, message.from));
         require(success, string(returnData));
     }
+
+
+    bool _approvalLock = false;
+    /// @notice forward call from EOA signed message
+    /// @param message.from address from which the message come from (For EOA this is the same as signer)
+    /// @param message.to target of the call
+    /// @param message.nonceStrategy contract address that check and update nonce
+    /// @param message.nonce nonce value
+    /// @param message.data call data
+    /// @param message.extraDataHash extra data hashed that can be used as embedded message for implementing more complex scenario, with one sig
+    /// @param signatureType signatureType either EOA, EIP1271 or EIP1654
+    /// @param signature signature
+    /// @param token address of the erc20 token to approve
+    /// @param amount amount of erc20 token
+    function forwardWithERC20Token(
+        Message memory message,
+        SignatureType signatureType,
+        bytes memory signature,
+        ERC20 token,
+        uint256 amount
+    ) public { // external is not supported in solidity < 0.6.4 when ABIEncoderV2 Struct are used
+        require(_isValidChainId(message.chainId), "INVALID_CHAIN_ID");
+        _checkSigner(message, signatureType, signature);
+
+        uint256 previousBalance;
+        if(amount > 0) {
+            require(!_approvalLock, "ERC20_APPROVAL_PENDING");
+            _approvalLock = true;
+            previousBalance = token.balanceOf(address(this));
+            require(token.transferFrom(msg.sender, address(this), amount), "ERC20_ALLOCATION_FAILED");
+            require(token.approve(message.to, amount), "ERC20_APPROVAL_FAIL");
+        }
+
+        // optimization to avoid call if using default nonce strategy
+        // this contract implements a default nonce strategy and can be called directly
+        if (message.nonceStrategy == address(0) || message.nonceStrategy == address(this)) {
+            require(checkAndUpdateNonce(message.from, message.nonce), "NONCE_INVALID");
+        } else {
+            require(NonceStrategy(message.nonceStrategy).checkAndUpdateNonce(message.from, message.nonce), "NONCE_INVALID");
+        }
+
+        // TODO? allow the forwarder (calling forward) to pass msg.value on behalf of the message signer ?
+        // if so we could simply use the msg.value as part of the message (no need to pass it in in the struct)
+        (bool success, bytes memory returnData) = message.to.call(abi.encodePacked(message.data, message.from));
+        if(amount > 0) {
+            require(token.approve(message.to, 0), "ERC20_APPROVAL_RESET_FAIL");
+            uint256 newBalance = token.balanceOf(address(this));
+            if (newBalance > previousBalance) {
+                require(token.transfer(msg.sender, newBalance - previousBalance), "ERC20_REFUND_FAILED");
+            }
+            _approvalLock = false;
+        }
+        require(success, string(returnData));
+    }
+
 
 
     // ///////////////////////////////// INTERNAL ////////////////////////////////////////////
