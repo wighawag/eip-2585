@@ -6,6 +6,8 @@ import WalletWrapper from '../components/WalletWrapper';
 import account from '../stores/account';
 import * as ethers from 'ethers';
 import {pause} from '../utils/time'
+import {TypedDataUtils} from 'eth-sig-util';
+const zeroAddress = '0x0000000000000000000000000000000000000000';
 
 const { Wallet, Contract, BigNumber, AbiCoder } = ethers;
 
@@ -58,341 +60,46 @@ async function getEventsFromReceipt(ethersProvider, ethersContract, sig, receipt
 }
 
 async function transferFirstNumber() {
-	const nftAddress = wallet.getContract('Numbers').address;
-	const daiAddress = wallet.getContract('DAI').address;
-	const metaTxProcessorContract = wallet.getContract('GenericMetaTxProcessor');
-	const metaTxProcessorAddress = metaTxProcessorContract.address;
-
-	if (!ethers.utils.isAddress(transferTo)) {
-		$metatx = {status: 'error', message: 'Please specify a valid address'};
-		return false;
-	} 
-
-	const txData = await wallet.computeData('Numbers', 'transferFrom', $wallet.address, transferTo, $account.numbers[0]);
-	const nonce = transfer_nonce ? BigNumber.from(transfer_nonce) :await wallet.call('GenericMetaTxProcessor', 'meta_nonce', $wallet.address, transfer_batchId);
-
-	const message = {
-      from: $wallet.address,
-	  to: nftAddress,
-	  tokenContract: daiAddress,
-	  amount: BigNumber.from(transfer_amount).mul('1000000000000000000').toString(),
-	  data: txData.data,
-	  batchId: transfer_batchId,
-	  batchNonce: nonce.add(1).toHexString(),
-	  expiry: transfer_expiry,
-	  txGas: transfer_txGas,
-	  baseGas: 100000,
-	  tokenGasPrice: BigNumber.from(transfer_tokenGasPrice * 1000000000).mul('1000000000').toString(), // TODO use decimals
-	  relayer: transfer_relayer,
-	}
-
-	const msgParams = JSON.stringify({types:{
-      EIP712Domain:[
-        {name:"name",type:"string"},
-        {name:"version",type:"string"},
-        {name:"verifyingContract",type:"address"}
-      ],
-      ERC20MetaTransaction:[
-		{name:"from",type:"address"},
-		{name:"to",type:"address"},
-		{name:"tokenContract",type:"address"},
-		{name:"amount",type:"uint256"},
-		{name:"data",type:"bytes"},
-		{name:"batchId",type:"uint256"},
-		{name:"batchNonce",type:"uint256"},
-		{name:"expiry",type:"uint256"},
-		{name:"txGas",type:"uint256"},
-		{name:"baseGas",type:"uint256"},
-		{name:"tokenGasPrice",type:"uint256"},
-        {name:"relayer",type:"address"}
-      ],
-    },
-    primaryType:"ERC20MetaTransaction",
-    domain:{name:"Generic Meta Transaction",version:"1",verifyingContract: metaTxProcessorAddress},
-	message
+	const calls = [await wallet.computeData('Numbers', 'transferFrom', $wallet.address, transferTo, $account.numbers[0])];
+	return sendMetaTx(calls, {
+		batchId: transfer_batchId,
+		batchNonce: transfer_nonce
+	},
+	{
+		tokenContractName: 'DAI',
+		expiry: transfer_expiry,
+		txGas: transfer_txGas,
+		tokenGasPrice: BigNumber.from(transfer_tokenGasPrice * 1000000000).mul('1000000000').toString(), // TODO use decimals
+		relayerAddress: transfer_relayer,
 	});
-	
-	let response;
-	try {
-		response = await wallet.sign(msgParams);
-	} catch(e) {
-		$metatx = {status: 'error', message: 'signature rejected'};
-		return false;
-	}
-	if (!response) {
-		$metatx = {status: 'error', message: 'signature rejected, no response'};
-		return false;
-	}
-	$metatx = {status: 'submitting'};
-	await pause(0.4);
-
-	const provider = relayer.getProvider();
-	const relayerWallet = new Wallet($relayer.privateKey).connect(provider);
-	const metaTxProcessor = new Contract(metaTxProcessorContract.address, metaTxProcessorContract.abi, relayerWallet);
-	
-	const currentBalance = await provider.getBalance(relayerWallet.address);
-	if (currentBalance.lt('1000000000000000')) {
-		$metatx = {status: 'error', message: 'relayer balance too low, please send ETH to ' + relayerWallet.address};
-		return false;     
-	}
-
-	$metatx = {status: 'waitingRelayer'};
-	while($relayer.status != 'Loaded' && $relayer.status != 'Error') {
-		await pause(1);
-	}
-	if ($relayer.status == 'Error') {
-		$metatx = {status: 'error', message: $relayer.message};
-		return false;
-	}
-	// await pause(0.4);
-
-	if (message.relayer.toLowerCase() != '0x0000000000000000000000000000000000000000' && message.relayer.toLowerCase() != $relayer.address.toLowerCase()) {
-		$metatx = {status: 'error', message: 'Relayer will not execute it as the message is destined to another relayer'};
-		return false;
-	} 
-
-	if(message.expiry <  Date.now() /1000 ) {
-		$metatx = {status: 'error', message: 'Relayer will not execute it as the expiry time is in the past'};
-		return false;
-	}else if(message.expiry <  Date.now() / 1000 - 60) {
-		$metatx = {status: 'error', message: 'Relayer will not execute it as the expiry time is too short'};
-		return false;
-	}
-
-	const actualMetaNonce = await wallet.call('GenericMetaTxProcessor', 'meta_nonce', $wallet.address, transfer_batchId);
-	const expectedBatchNonce = actualMetaNonce.add(1).toHexString();
-	if (expectedBatchNonce != message.batchNonce) {
-		$metatx = {status: 'error', message: 'Relayer will not execute it as the message has the wrong nonce'};
-		return false;
-	}
-	console.log(expectedBatchNonce, message.batchNonce);
-
-	let tx 
-	try {
-		tx = await metaTxProcessor.executeMetaTransaction(
-			{
-				from: message.from,
-				to: message.to,
-				data: message.data,
-				signature: response,
-				signatureType: 0
-			},
-			{
-				tokenContract: message.tokenContract,
-				amount: message.amount,
-				batchId: message.batchId,
-        		batchNonce: message.batchNonce,
-        		expiry: message.expiry,
-        		txGas: message.txGas,
-        		baseGas: message.baseGas,
-        		tokenGasPrice: message.tokenGasPrice,
-        		relayer: message.relayer,
-			},
-			relayerWallet.address,
-			{gasLimit: BigNumber.from('2000000'), chainId: relayer.getChainIdToUse()}
-		);
-	} catch(e) {
-		// TODO error
-		console.log(e);
-		$metatx = {status: 'error', message: 'relayer tx failed at submission'};
-		return false;
-	}
-
-	$metatx = {status: 'txBroadcasted'};
-	await pause(0.4);
-	let receipt;
-	try {
-		receipt = await tx.wait();
-	} catch(e) {
-		// TODO error
-		console.log(e);
-		$metatx = {status: 'error', message: 'relayer tx failed'};
-		return false;
-	}
-	
-	const metaTxEvent = receipt.events.find((event) => event.event === 'MetaTx' && event.address === metaTxProcessor.address);
-	if (!metaTxEvent.args[2]){
-		const errorString = errorToAscii(metaTxEvent.args[3]);
-		console.error(errorString);
-	}
-	console.log(receipt);
-	account.refresh();
-	$metatx = {status: 'txConfirmed'};
-	while($account.blockNumber < receipt.blockNumber) {
-		await pause(0.5);
-	}
-	$metatx = {status: 'none'};
-	return receipt;
 }
 
 async function purchaseNumber() {
 	const saleAddress = wallet.getContract('NumberSale').address;
-	const daiAddress = wallet.getContract('DAI').address;
-	const metaTxProcessorContract = wallet.getContract('GenericMetaTxProcessor');
-	const metaTxProcessorAddress = metaTxProcessorContract.address;
-	const txData = await wallet.computeData('NumberSale', 'purchase', $wallet.address, $wallet.address);
-	const nonce = purchase_nonce ? BigNumber.frm(purchase_nonce) :await wallet.call('GenericMetaTxProcessor', 'meta_nonce', $wallet.address, purchase_batchId);
-
-	const message = {
-      from: $wallet.address,
-	  to: saleAddress,
-	  tokenContract: daiAddress,
-	  amount: BigNumber.from(purchase_amount).mul('1000000000000000000').toString(),
-	  data: txData.data,
-	  batchId: purchase_batchId,
-	  batchNonce: nonce.add(1).toHexString(),
-	  expiry: purchase_expiry,
-	  txGas: purchase_txGas,
-	  baseGas: 100000,
-	  tokenGasPrice: BigNumber.from(purchase_tokenGasPrice * 1000000000).mul('1000000000').toString(), // TODO use decimals
-	  relayer: purchase_relayer,
-	}
-	const msgParams = JSON.stringify({types:{
-      EIP712Domain:[
-        {name:"name",type:"string"},
-        {name:"version",type:"string"},
-        {name:"verifyingContract",type:"address"}
-      ],
-      ERC20MetaTransaction:[
-		{name:"from",type:"address"},
-		{name:"to",type:"address"},
-		{name:"tokenContract",type:"address"},
-		{name:"amount",type:"uint256"},
-		{name:"data",type:"bytes"},
-		{name:"batchId",type:"uint256"},
-		{name:"batchNonce",type:"uint256"},
-		{name:"expiry",type:"uint256"},
-		{name:"txGas",type:"uint256"},
-		{name:"baseGas",type:"uint256"},
-		{name:"tokenGasPrice",type:"uint256"},
-        {name:"relayer",type:"address"}
-      ],
-    },
-    primaryType:"ERC20MetaTransaction",
-    domain:{name:"Generic Meta Transaction",version:"1",verifyingContract: metaTxProcessorAddress},
-	message
+	// const approvalCall = await wallet.computeData('DAI', 'approve', saleAddress, '10000000000000000000');
+	// TODO support DAI via message in
+	const purchaseCall = await wallet.computeData('NumberSale', 'purchase', $wallet.address, $wallet.address);
+	const calls = [purchaseCall];
+	return sendMetaTx(calls, {
+		batchId: purchase_batchId,
+		batchNonce: purchase_nonce
+	},
+	{
+		tokenContractName: 'DAI',
+		expiry: purchase_expiry,
+		txGas: purchase_txGas,
+		tokenGasPrice: BigNumber.from(purchase_tokenGasPrice * 1000000000).mul('1000000000').toString(), // TODO use decimals
+		relayerAddress: purchase_relayer,
 	});
-	
-	let response;
-	try {
-		response = await wallet.sign(msgParams);
-	} catch(e) {
-		$metatx = {status: 'error', message: 'signature rejected'};
-		return false;
-	}
-	if (!response) {
-		$metatx = {status: 'error', message: 'signature rejected, no response'};
-		return false;
-	}
-	
-	$metatx = {status: 'submitting'};
-	await pause(0.4);
-	const provider = relayer.getProvider();
-	const relayerWallet = new Wallet($relayer.privateKey).connect(provider);
-	const metaTxProcessor = new Contract(metaTxProcessorContract.address, metaTxProcessorContract.abi, relayerWallet);
-
-	const currentBalance = await provider.getBalance(relayerWallet.address);
-	if (currentBalance.lt('1000000000000000')) {
-		$metatx = {status: 'error', message: 'relayer balance too low, please send ETH to ' + relayerWallet.address};
-		return false;     
-	}
-
-	$metatx = {status: 'waitingRelayer'};
-	while($relayer.status != 'Loaded' && $relayer.status != 'Error') {
-		await pause(1);
-	}
-	if ($relayer.status == 'Error') {
-		$metatx = {status: 'error', message: $relayer.message};
-		return false;
-	}
-	// await pause(0.4);
-
-	if (message.relayer.toLowerCase() != '0x0000000000000000000000000000000000000000' && message.relayer.toLowerCase() != $relayer.address.toLowerCase()) {
-		$metatx = {status: 'error', message: 'Relayer will not execute it as the message is destined to another relayer'};
-		return false;
-	} 
-
-	if(message.expiry <  Date.now() /1000 ) {
-		$metatx = {status: 'error', message: 'Relayer will not execute it as the expiry time is in the past'};
-		return false;
-	}else if(message.expiry <  Date.now() / 1000 - 60) {
-		$metatx = {status: 'error', message: 'Relayer will not execute it as the expiry time is too short'};
-		return false;
-	}
-
-	const actualMetaNonce = await wallet.call('GenericMetaTxProcessor', 'meta_nonce', $wallet.address, transfer_batchId);
-	const expectedBatchNonce = actualMetaNonce.add(1).toHexString();
-	if (expectedBatchNonce != message.batchNonce) {
-		$metatx = {status: 'error', message: 'Relayer will not execute it as the message has the wrong nonce'};
-		return false;
-	}
-	console.log(expectedBatchNonce, message.batchNonce);
-
-	let tx 
-	try {
-		tx = await metaTxProcessor.executeMetaTransaction(
-			{
-				from: message.from,
-				to: message.to,
-				data: message.data,
-				signature: response,
-				signatureType: 0
-			},
-			{
-				tokenContract: message.tokenContract,
-				amount: message.amount,
-				batchNonce: message.batchNonce,
-        		batchId: message.batchId,
-        		expiry: message.expiry,
-        		txGas: message.txGas,
-        		baseGas: message.baseGas,
-        		tokenGasPrice: message.tokenGasPrice,
-        		relayer: message.relayer,
-			},
-			relayerWallet.address,
-			{gasLimit: BigNumber.from('2000000'), chainId: relayer.getChainIdToUse()}
-		);
-	} catch(e) {
-		// TODO error
-		console.log(e);
-		$metatx = {status: 'error', message: 'relayer tx failed at submission'};
-		return false;
-	}
-	
-	$metatx = {status: 'txBroadcasted'};
-	await pause(0.4);
-	let receipt;
-	try {
-		receipt = await tx.wait();
-	} catch(e) {
-		// TODO error
-		console.log(e);
-		$metatx = {status: 'error', message: 'relayer tx failed'};
-		return false;
-	}
-	const metaTxEvent = receipt.events.find((event) => event.event === 'MetaTx' && event.address === metaTxProcessor.address);
-	if (!metaTxEvent.args[2]){
-		const errorString = errorToAscii(metaTxEvent.args[3]);
-		$metatx = {status: 'error', message: 'MetaTx Mined but Error: ' + errorString};
-		return false;
-	}
-	console.log(receipt);
-	account.refresh();
-	$metatx = {status: 'txConfirmed'};
-	while($account.blockNumber < receipt.blockNumber) {
-		await pause(0.5);
-	}
-	$metatx = {status: 'none'};
-	return receipt;
 }
 
 async function permitDAI() {
 	const dai = wallet.getContract('DAI');
-	const metaTxProcessorAddress = wallet.getContract('GenericMetaTxProcessor').address;
+	const numberSaleAddress = wallet.getContract('NumberSale').address;
 	const nonce = await wallet.call('DAI', 'nonces', $wallet.address);
 	const message = {
       holder: $wallet.address,
-	  spender: metaTxProcessorAddress,
+	  spender: numberSaleAddress,
 	  nonce: nonce.toHexString(),
 	  expiry: 0,
 	  allowed: true
@@ -485,6 +192,174 @@ async function permitDAI() {
 	$metatx = {status: 'none'};
 	return receipt;
 }
+
+async function sendMetaTx(calls, {batchId, batchNonce}, {tokenContractName, expiry, txGas, baseGas, tokenGasPrice, relayerAddress}) {
+	const tokenContract = wallet.getContract(tokenContractName).address;
+	
+	const EIP1776ForwarderWrapperContract = wallet.getContract('EIP1776ForwarderWrapper');
+    const meta_transaction = await wallet.computeData('EIP712Forwarder', 'batch', calls);
+
+	batchNonce = batchNonce ? BigNumber.from(batchNonce) : await wallet.call('EIP712Forwarder', 'getNonce', $wallet.address, batchId);
+	const nonce = batchNonce; // TODO .add(batchId.mul(BigNumber.from(2).pow(128))) // TODO // for now only batch 0
+	
+	const wrapper_message = {
+      tokenContract,
+	  amount: 0, // TODO remove
+	  expiry,
+	  txGas,
+	  baseGas: baseGas || 100000,
+	  tokenGasPrice,
+	  relayer: relayerAddress,
+	}
+	const wrapper_hash = '0x' + TypedDataUtils.sign({
+		types:{
+			EIP712Domain:[
+				{name:"name",type:"string"},
+				{name:"version",type:"string"},
+				{name:"verifyingContract",type:"address"}
+			],
+			ERC20MetaTransaction:[
+				{name:"tokenContract",type:"address"},
+				{name:"amount",type:"uint256"}, // TODO remove
+				{name:"expiry",type:"uint256"},
+				{name:"txGas",type:"uint256"},
+				{name:"baseGas",type:"uint256"},
+				{name:"tokenGasPrice",type:"uint256"},
+				{name:"relayer",type:"address"}
+			],
+		},
+		primaryType:"ERC20MetaTransaction",
+		domain:{name:"Generic Meta Transaction",version:"1",verifyingContract: EIP1776ForwarderWrapperContract.address},
+		message: wrapper_message
+	}).toString('hex');
+
+	const message = {
+      from: $wallet.address,
+	  to: meta_transaction.to,
+	  chainId: relayer.getChainIdToUse(),
+	  replayProtection: zeroAddress, 
+	  nonce: ethers.utils.defaultAbiCoder.encode(['uint256'], [nonce]),
+	  data: meta_transaction.data,
+	  extraDataHash: wrapper_hash
+	};
+	const msgParams = JSON.stringify({
+		types:{
+			EIP712Domain:[
+				{name:"name",type:"string"},
+				{name:"version",type:"string"}
+			],
+			MetaTransaction:[
+				{name: 'from', type: 'address'},
+				{name: 'to', type: 'address'},
+				{name: 'chainId', type: 'uint256'},
+				{name: 'replayProtection', type: 'address'},
+				{name: 'nonce', type: 'bytes'},
+				{name: 'data', type: 'bytes'},
+				{name: 'extraDataHash', type: 'bytes32'},
+			],
+    	},
+		primaryType:"MetaTransaction",
+		domain:{name:"Forwarder",version:"1"},
+		message
+	});
+	
+	let response;
+	try {
+		response = await wallet.sign(msgParams);
+	} catch(e) {
+		$metatx = {status: 'error', message: 'signature rejected'};
+		return false;
+	}
+	if (!response) {
+		$metatx = {status: 'error', message: 'signature rejected, no response'};
+		return false;
+	}
+	
+	$metatx = {status: 'submitting'};
+	await pause(0.4);
+	const provider = relayer.getProvider();
+	const relayerWallet = new Wallet($relayer.privateKey).connect(provider);
+	const metaTxProcessor = new Contract(EIP1776ForwarderWrapperContract.address, EIP1776ForwarderWrapperContract.abi, relayerWallet);
+
+	const currentBalance = await provider.getBalance(relayerWallet.address);
+	if (currentBalance.lt('1000000000000000')) {
+		$metatx = {status: 'error', message: 'relayer balance too low, please send ETH to ' + relayerWallet.address};
+		return false;     
+	}
+
+	$metatx = {status: 'waitingRelayer'};
+	while($relayer.status != 'Loaded' && $relayer.status != 'Error') {
+		await pause(1);
+	}
+	if ($relayer.status == 'Error') {
+		$metatx = {status: 'error', message: $relayer.message};
+		return false;
+	}
+	// await pause(0.4);
+	if (wrapper_message.relayer.toLowerCase() != '0x0000000000000000000000000000000000000000' && wrapper_message.relayer.toLowerCase() != $relayer.address.toLowerCase()) {
+		$metatx = {status: 'error', wrapper_message: 'Relayer will not execute it as the message is destined to another relayer'};
+		return false;
+	} 
+
+	if(wrapper_message.expiry <  Date.now() /1000 ) {
+		$metatx = {status: 'error', wrapper_message: 'Relayer will not execute it as the expiry time is in the past'};
+		return false;
+	}else if(wrapper_message.expiry <  Date.now() / 1000 - 60) {
+		$metatx = {status: 'error', wrapper_message: 'Relayer will not execute it as the expiry time is too short'};
+		return false;
+	}
+
+	const actualMetaNonce = await wallet.call('EIP712Forwarder', 'getNonce', $wallet.address, batchId);
+	const expectedBatchNonce = actualMetaNonce.toHexString();
+	if (expectedBatchNonce != batchNonce.toHexString()) {
+		$metatx = {status: 'error', message: 'Relayer will not execute it as the message has the wrong nonce'};
+		return false;
+	}
+	console.log(expectedBatchNonce, batchNonce);
+
+	let tx 
+	try {
+		tx = await metaTxProcessor.executeMetaTransaction(
+			message,
+			0,
+			response,
+			wrapper_message,
+			relayerWallet.address,
+			{gasLimit: BigNumber.from('2000000'), chainId: relayer.getChainIdToUse()}
+		);
+	} catch(e) {
+		// TODO error
+		console.log(e);
+		$metatx = {status: 'error', message: 'relayer tx failed at submission'};
+		return false;
+	}
+	
+	$metatx = {status: 'txBroadcasted'};
+	await pause(0.4);
+	let receipt;
+	try {
+		receipt = await tx.wait();
+	} catch(e) {
+		// TODO error
+		console.log(e);
+		$metatx = {status: 'error', message: 'relayer tx failed'};
+		return false;
+	}
+	const metaTxEvent = receipt.events.find((event) => event.event === 'MetaTx' && event.address === metaTxProcessor.address);
+	if (!metaTxEvent.args[1]){
+		const errorString = errorToAscii(metaTxEvent.args[2]);
+		$metatx = {status: 'error', message: 'MetaTx Mined but Error: ' + errorString};
+		return false;
+	}
+	console.log(receipt);
+	account.refresh();
+	$metatx = {status: 'txConfirmed'};
+	while($account.blockNumber < receipt.blockNumber) {
+		await pause(0.5);
+	}
+	$metatx = {status: 'none'};
+	return receipt;
+}
 </script>
 
 <style>
@@ -544,9 +419,9 @@ async function permitDAI() {
 	<hr/>
 	{:else if $account.status == 'Loaded'}
 		
-		{#if $account.hasApprovedMetaTxProcessorForDAI}
+		{#if $account.hasApprovedNumberSaleForDAI}
 		<hr/>
-		<p>Congrats, you already authorized our singleton metatx processor to handle DAI</p>
+		<p>Congrats, you already authorized the Sale contract to handle DAI</p>
 		<p>Your DAI Balance:</p>
 		<hr/>
 		<h3 class="center">{$account.daiBalance.div('1000000000000000') / 1000}</h3>
@@ -570,7 +445,7 @@ async function permitDAI() {
 		<h3 class="center">{$account.daiBalance.div('1000000000000000000')}</h3>
 		<p>Since DAI was created before such proposal, you would need to first approve your token to be used by the meta transaction processor.
 		Fortunately, DAI allow us to do that with a simple signature (via permit call)</p>
-		<p><button on:click="{() => permitDAI()}">Approve MetaTx Processor</button></p>
+		<p><button on:click="{() => permitDAI()}">Approve Sale</button></p>
 		{/if}
 		<br/>
 		<br/>
