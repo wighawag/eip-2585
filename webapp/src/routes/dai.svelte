@@ -13,7 +13,6 @@ const zeroAddress = '0x0000000000000000000000000000000000000000';
 
 const { Wallet, Contract, BigNumber, AbiCoder } = ethers;
 
-let purchase_amount = 1;
 let purchase_expiry = 1610600198;
 let purchase_txGas = 1000000;
 let purchase_batchId = 0;
@@ -21,7 +20,6 @@ let purchase_nonce = undefined;
 let purchase_tokenGasPrice = 0;
 let purchase_relayer = "0x0000000000000000000000000000000000000000";
 
-let transfer_amount = 0;
 let transfer_expiry = 1610600198;
 let transfer_txGas = 1000000;
 let transfer_batchId = 0;
@@ -202,7 +200,7 @@ async function sendMetaTx(calls, {batchId, batchNonce}, {tokenContractName, expi
     const meta_transaction = await wallet.computeData('EIP712Forwarder', 'batch', calls);
 
 	batchNonce = batchNonce ? BigNumber.from(batchNonce) : await wallet.call('EIP712Forwarder', 'getNonce', $wallet.address, batchId);
-	const nonce = batchNonce; // TODO .add(batchId.mul(BigNumber.from(2).pow(128))) // TODO // for now only batch 0
+	const nonce = batchNonce.add(BigNumber.from(batchId).mul(BigNumber.from(2).pow(128)));
 	
 	const wrapper_message = {
       txGas,
@@ -430,12 +428,11 @@ async function sendMetaTx(calls, {batchId, batchNonce}, {tokenContractName, expi
 			<details class="mb-10">
 				<summary>advanced Meta Tx settings</summary>
 				<div class="mt-6 sm:mt-5">
-					<SettingsOption label="DAI amount" type="number" bind:value={purchase_amount}/>
 					<SettingsOption label="expiry" type="datetime" bind:value={purchase_expiry}/>
 					<SettingsOption label="txGas" type="number" bind:value={purchase_txGas}/>
 					<SettingsOption label="batchId" type="number" bind:value={purchase_batchId}/>
 					<SettingsOption label="nonce" type="number" bind:value={purchase_nonce}/>
-					<SettingsOption label="tokenGasPrice" type="number" bind:value={purchase_tokenGasPrice}/>
+					<!-- <SettingsOption label="tokenGasPrice" type="number" bind:value={purchase_tokenGasPrice}/> -->
 					<SettingsOption label="relayer" type="string" bind:value={purchase_relayer}/>
 				</div>
 			</details>
@@ -526,12 +523,11 @@ async function sendMetaTx(calls, {batchId, batchNonce}, {tokenContractName, expi
 			<details class="mb-10">
 				<summary>advanced Meta Tx settings</summary>
 				<div class="mt-6 sm:mt-5">
-					<SettingsOption label="DAI amount" type="number" bind:value={transfer_amount}/>
 					<SettingsOption label="expiry" type="datetime" bind:value={transfer_expiry}/>
 					<SettingsOption label="txGas" type="number" bind:value={transfer_txGas}/>
 					<SettingsOption label="batchId" type="number" bind:value={transfer_batchId}/>
 					<SettingsOption label="nonce" type="number" bind:value={transfer_nonce}/>
-					<SettingsOption label="tokenGasPrice" type="number" bind:value={transfer_tokenGasPrice}/>
+					<!-- <SettingsOption label="tokenGasPrice" type="number" bind:value={transfer_tokenGasPrice}/> -->
 					<SettingsOption label="relayer" type="string" bind:value={transfer_relayer}/>
 				</div>
 			</details>

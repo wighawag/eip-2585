@@ -23,9 +23,11 @@ contract MTX is ForwarderReceiverBase /*ERC20*/{ // interface seems to require o
 
     uint256 internal _supplyClaimed;
     mapping(address => bool) internal _claimed; // TODO optimize it by storing it in the same slot as _balances
+    address internal /*immutable*/ _eip1776AsSuperOperator;
 
-    constructor(uint256 supply, address forwarder) public ForwarderReceiverBase(forwarder) {
+    constructor(uint256 supply, address forwarder, address eip1776) public ForwarderReceiverBase(forwarder) {
         _totalSupply = supply;
+        _eip1776AsSuperOperator = eip1776;
     }
 
     /// @notice Gets the total number of tokens in existence.
@@ -97,7 +99,7 @@ contract MTX is ForwarderReceiverBase /*ERC20*/{ // interface seems to require o
         returns (bool success)
     {
         address sender = _getTxSigner();
-        if (sender != from) {
+        if (sender != from && sender != _eip1776AsSuperOperator) {
             uint256 currentAllowance = _allowances[from][sender];
             if (currentAllowance != (2**256) - 1) {
                 // save gas when allowance is maximal by not reducing it (see https://github.com/ethereum/EIPs/issues/717)

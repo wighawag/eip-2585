@@ -13,7 +13,6 @@ const zeroAddress = '0x0000000000000000000000000000000000000000';
 
 const { Wallet, Contract, BigNumber, AbiCoder } = ethers;
 
-let purchase_amount = 1;
 let purchase_expiry = 1610600198;
 let purchase_txGas = 1000000;
 let purchase_batchId = 0;
@@ -21,7 +20,6 @@ let purchase_nonce = null;
 let purchase_tokenGasPrice = 0;
 let purchase_relayer = "0x0000000000000000000000000000000000000000";
 
-let transfer_amount = 0;
 let transfer_expiry = 1610600198;
 let transfer_txGas = 1000000;
 let transfer_batchId = 0;
@@ -102,7 +100,7 @@ async function sendMetaTx(calls, {batchId, batchNonce}, {tokenContractName, expi
     const meta_transaction = await wallet.computeData('EIP712Forwarder', 'batch', calls);
 
 	batchNonce = batchNonce ? BigNumber.from(batchNonce) : await wallet.call('EIP712Forwarder', 'getNonce', $wallet.address, batchId);
-	const nonce = batchNonce; // TODO .add(batchId.mul(BigNumber.from(2).pow(128))) // TODO // for now only batch 0
+	const nonce = batchNonce.add(BigNumber.from(batchId).mul(BigNumber.from(2).pow(128)));
 	
 	const wrapper_message = {
       txGas,
@@ -281,7 +279,7 @@ async function sendMetaTx(calls, {batchId, batchNonce}, {tokenContractName, expi
 
 <div class="bg-gray-200 overflow-hidden rounded-lg">
 	<div class="px-4 py-5 sm:p-6">	
-		<p>This demo showcase the benefit of EIP-5 and EIP-1776 standards and how they can be set up to provide a seamingless experience to user without ether. More details <a class="underline" href="about">here</a>.</p>		
+		<p>This demo showcase the benefit of EIP-2585 and EIP-1776 standards and how they can be set up to provide a seamingless experience to user without ether. More details <a class="underline" href="about">here</a>.</p>		
 	</div>
 </div>
 
@@ -291,7 +289,7 @@ async function sendMetaTx(calls, {batchId, batchNonce}, {tokenContractName, expi
 	{:else if $account.status == 'Loaded'}
 		<div class="bg-gray-200 overflow-hidden rounded-lg mt-5 my-5">
 			<div class="px-4 py-5 sm:p-6">
-				<p>MTX is a token that support EIP-2585 and can thus be used without any extra step. You can even start interacting with contracts that support the standard and they can even charge tokens (no pre-approval required!).</p>
+				<p>MTX is a token that support EIP-2585 and has pre-approved EIP-1776 preprocessor to allow user to pay gas in MTX. MTX can thus be used without any extra step. You can even start interacting with contracts that support the standard and they can even charge tokens (no pre-approval required!).</p>
 			</div>
 		</div>
 
@@ -328,7 +326,6 @@ async function sendMetaTx(calls, {batchId, batchNonce}, {tokenContractName, expi
 			<details class="mb-10">
 				<summary>advanced Meta Tx settings</summary>
 				<div class="mt-6 sm:mt-5">
-					<SettingsOption label="MTX amount" type="number" bind:value={purchase_amount}/>
 					<SettingsOption label="expiry" type="datetime" bind:value={purchase_expiry}/>
 					<SettingsOption label="txGas" type="number" bind:value={purchase_txGas}/>
 					<SettingsOption label="batchId" type="number" bind:value={purchase_batchId}/>
@@ -389,7 +386,6 @@ async function sendMetaTx(calls, {batchId, batchNonce}, {tokenContractName, expi
 			<details class="mb-10">
 				<summary>advanced Meta Tx settings</summary>
 				<div class="mt-6 sm:mt-5">
-					<SettingsOption label="MTX amount" type="number" bind:value={transfer_amount}/>
 					<SettingsOption label="expiry" type="datetime" bind:value={transfer_expiry}/>
 					<SettingsOption label="txGas" type="number" bind:value={transfer_txGas}/>
 					<SettingsOption label="batchId" type="number" bind:value={transfer_batchId}/>

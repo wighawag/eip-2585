@@ -128,7 +128,7 @@ contract Forwarder is ReplayProtection {
     function checkAndUpdateNonce(address signer, bytes memory nonce) public override returns (bool) {
         // TODO? default nonce strategy could be different (maybe the most versatile : batchId + Nonce)
         uint256 value = abi.decode(nonce, (uint256));
-        uint128 batchId = uint128(value >> 128);
+        uint128 batchId = uint128(value / 2**128);
         uint128 batchNonce = uint128(value % 2**128);
 
         uint128 currentNonce = _batches[signer][batchId];
