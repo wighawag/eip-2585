@@ -18,16 +18,23 @@
     "cross-env": "^6.0.3",
     "eth-sig-util": "^2.5.3",
     "ethers": "^5.0.0-beta.177",
+    "marked": "^0.8.2",
     "polka": "next",
     "sirv": "^0.4.0",
     "sirv-cli": "^0.4.5",
     "svelte-wallet": "^0.1.25"
   },
   "devDependencies": {
+    "@fullhuman/postcss-purgecss": "^2.0.3",
+    "@tailwindcss/ui": "^0.1.3",
     "npm-run-all": "^4.1.5",
+    "postcss": "^7.0.26",
+    "postcss-load-config": "^2.1.0",
     "sapper": "git://github.com/wighawag/sapper.git#relative_baseUrl",
     "svelte": "^3.0.0",
     "svelte-loader": "^2.9.0",
+    "svelte-preprocess": "^3.3.0",
+    "tailwindcss": "^1.1.4",
     "webpack": "^4.7.0"
   }
 }
