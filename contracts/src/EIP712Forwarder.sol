@@ -18,7 +18,7 @@ contract EIP712Forwarder is Forwarder {
     );
 
     bytes32 constant METATRANSACTION_TYPEHASH = keccak256(
-        "MetaTransaction(address from,address to,uint256 chainId,address nonceStrategy,bytes nonce,bytes data,bytes32 extraDataHash)"
+        "MetaTransaction(address from,address to,uint256 chainId,address replayProtection,bytes nonce,bytes data,bytes32 extraDataHash)"
     );
 
     function _encodeMessage(Message memory message) internal override pure returns (bytes memory) {
@@ -30,7 +30,7 @@ contract EIP712Forwarder is Forwarder {
                 message.from,
                 message.to,
                 message.chainId,
-                message.nonceStrategy,
+                message.replayProtection,
                 keccak256(message.nonce),
                 keccak256(message.data),
                 message.extraDataHash

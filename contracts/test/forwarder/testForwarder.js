@@ -28,7 +28,7 @@ describe("Forwarder", () => {
       from: metaUserWallet.address,
       to: receiverContract.address,
       chainId: 31337,
-      nonceStrategy: zeroAddress,
+      replayProtection: zeroAddress,
       nonce: '0x0000000000000000000000000000000000000000000000000000000000000000',
       data,
       extraDataHash: '0x0000000000000000000000000000000000000000000000000000000000000000'
@@ -38,7 +38,7 @@ describe("Forwarder", () => {
     const signature = await signMessage(
       metaUserWallet,
       ['address', 'address', 'uint256', 'address',       'bytes', 'bytes', 'bytes32'],
-      ['from',    'to',      'chainId', 'nonceStrategy', 'nonce', 'data',  'extraDataHash'],
+      ['from',    'to',      'chainId', 'replayProtection', 'nonce', 'data',  'extraDataHash'],
       message
     );
     
@@ -70,7 +70,7 @@ describe("EIP712Forwarder", () => {
       from: metaUserWallet.address,
       to: receiverContract.address,
       chainId: 31337,
-      nonceStrategy: zeroAddress,
+      replayProtection: zeroAddress,
       nonce: '0x0000000000000000000000000000000000000000000000000000000000000000',
       data,
       extraDataHash: '0x0000000000000000000000000000000000000000000000000000000000000000'
@@ -87,7 +87,7 @@ describe("EIP712Forwarder", () => {
           {name: 'from', type: 'address'},
           {name: 'to', type: 'address'},
           {name: 'chainId', type: 'uint256'},
-          {name: 'nonceStrategy', type: 'address'},
+          {name: 'replayProtection', type: 'address'},
           {name: 'nonce', type: 'bytes'},
           {name: 'data', type: 'bytes'},
           {name: 'extraDataHash', type: 'bytes32'},
@@ -168,7 +168,7 @@ describe("EIP1776ForwarderWrapper", () => {
       from: metaUserWallet.address,
       to: receiverContract.address,
       chainId: 31337,
-      nonceStrategy: zeroAddress,
+      replayProtection: zeroAddress,
       nonce: abiEncode(['uint256'], [0]), // '0x0000000000000000000000000000000000000000000000000000000000000000'
       data,
       extraDataHash: wrapper_hash
@@ -185,7 +185,7 @@ describe("EIP1776ForwarderWrapper", () => {
           {name: 'from', type: 'address'},
           {name: 'to', type: 'address'},
           {name: 'chainId', type: 'uint256'},
-          {name: 'nonceStrategy', type: 'address'},
+          {name: 'replayProtection', type: 'address'},
           {name: 'nonce', type: 'bytes'},
           {name: 'data', type: 'bytes'},
           {name: 'extraDataHash', type: 'bytes32'},
@@ -264,7 +264,7 @@ describe("EIP1776ForwarderWrapper", () => {
       from: metaUserWallet.address,
       to: forwarder.address,
       chainId: 31337,
-      nonceStrategy: zeroAddress,
+      replayProtection: zeroAddress,
       nonce: abiEncode(['uint256'], [0]), // '0x0000000000000000000000000000000000000000000000000000000000000000'
       data,
       extraDataHash: wrapper_hash
@@ -281,7 +281,7 @@ describe("EIP1776ForwarderWrapper", () => {
           {name: 'from', type: 'address'},
           {name: 'to', type: 'address'},
           {name: 'chainId', type: 'uint256'},
-          {name: 'nonceStrategy', type: 'address'},
+          {name: 'replayProtection', type: 'address'},
           {name: 'nonce', type: 'bytes'},
           {name: 'data', type: 'bytes'},
           {name: 'extraDataHash', type: 'bytes32'},

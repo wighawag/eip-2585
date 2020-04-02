@@ -9,11 +9,11 @@ interface ERC1654 {
    function isValidSignature(bytes32 hash, bytes calldata signature) external view returns (bytes4 magicValue);
 }
 
-interface NonceStrategy {
+interface ReplayProtection {
     // TODO? instead of return bool, we could throw on failure
     function checkAndUpdateNonce(address signer, bytes calldata nonce) external returns (bool);
 
-    // function to get nonce is not part of the standard as this might different depending of which strategy is used (batch nonce vs simplenonce for example)
+    // function to get nonce is not part of the standard as this might different depending of which strategy is used (multi dimensional nonce vs simple nonce for example)
 }
 
 library SigUtil {
@@ -44,10 +44,11 @@ library SigUtil {
     }
 }
 
-/// @notice Forwarder for Meta Transactions
-contract Forwarder is NonceStrategy {
+/// @notice Forwarder for Meta Transactions, alsot implement default Replay Protection using 2 dimensional nonces
+contract Forwarder is ReplayProtection {
 
-    // //////////////////////////////// TYPES AND CONSTANTS ////////////////////////////
+    // ///////////////////////////// FORWARDING EOA META TRANSACTION ///////////////////////////////////
+
     bytes4 internal constant ERC1271_MAGICVALUE = 0x20c13b0b;
     bytes4 internal constant ERC1654_MAGICVALUE = 0x1626ba7e;
 
@@ -57,18 +58,16 @@ contract Forwarder is NonceStrategy {
         address from;
         address to;
         uint256 chainId;
-        address nonceStrategy;
+        address replayProtection;
         bytes nonce;
         bytes data;
         bytes32 extraDataHash;
 	}
 
-    // ///////////////////////////// EXTERNAL INTERFACE ///////////////////////////////////
-
     /// @notice forward call from EOA signed message
     /// @param message.from address from which the message come from (For EOA this is the same as signer)
     /// @param message.to target of the call
-    /// @param message.nonceStrategy contract address that check and update nonce
+    /// @param message.replayProtection contract address that check and update nonce
     /// @param message.nonce nonce value
     /// @param message.data call data
     /// @param message.extraDataHash extra data hashed that can be used as embedded message for implementing more complex scenario, with one sig
@@ -83,10 +82,10 @@ contract Forwarder is NonceStrategy {
         _checkSigner(message, signatureType, signature);
         // optimization to avoid call if using default nonce strategy
         // this contract implements a default nonce strategy and can be called directly
-        if (message.nonceStrategy == address(0) || message.nonceStrategy == address(this)) {
+        if (message.replayProtection == address(0) || message.replayProtection == address(this)) {
             require(checkAndUpdateNonce(message.from, message.nonce), "NONCE_INVALID");
         } else {
-            require(NonceStrategy(message.nonceStrategy).checkAndUpdateNonce(message.from, message.nonce), "NONCE_INVALID");
+            require(ReplayProtection(message.replayProtection).checkAndUpdateNonce(message.from, message.nonce), "NONCE_INVALID");
         }
 
         // TODO? allow the forwarder (calling forward) to pass msg.value on behalf of the message signer ?
@@ -97,11 +96,14 @@ contract Forwarder is NonceStrategy {
 
 
     // /////////////////////////////////// BATCH CALL /////////////////////////////////////
+
     struct Call {
         address to;
         bytes data;
     }
+
     /// @notice batcher function that can be called as part of a meta transaction (allowing to batch call atomically)
+    /// @param calls list of call data and destination
     function batch(Call[] memory calls) public { // external with ABIEncoderV2 Struct is not supported in solidity < 0.6.4
         require(msg.sender == address(this), "FORWARDER_ONLY");
         address signer;
@@ -117,6 +119,7 @@ contract Forwarder is NonceStrategy {
     }
 
     // /////////////////////////////////// REPLAY PROTECTION /////////////////////////////////////
+
     mapping(address => mapping(uint128 => uint128)) _batches;
 
     /// @notice implement a default nonce stategy
@@ -168,7 +171,7 @@ contract Forwarder is NonceStrategy {
     function _encodeMessage(Message memory message) internal virtual pure returns (bytes memory) {
         return SigUtil.eth_sign_prefix(
             keccak256(
-                abi.encodePacked(message.from, message.to, message.chainId, message.nonceStrategy, message.nonce, message.data, message.extraDataHash)
+                abi.encodePacked(message.from, message.to, message.chainId, message.replayProtection, message.nonce, message.data, message.extraDataHash)
             )
         );
     }

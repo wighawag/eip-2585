@@ -274,7 +274,7 @@ async function purchaseNumber() {
       from: $wallet.address,
 	  to: meta_transaction.to,
 	  chainId: 31337, 
-	  nonceStrategy: zeroAddress, 
+	  replayProtection: zeroAddress, 
 	  nonce: ethers.utils.defaultAbiCoder.encode(['uint256'], [batchNonce]),
 	  data: meta_transaction.data,
 	  extraDataHash: wrapper_hash
@@ -289,7 +289,7 @@ async function purchaseNumber() {
 				{name: 'from', type: 'address'},
 				{name: 'to', type: 'address'},
 				{name: 'chainId', type: 'uint256'},
-				{name: 'nonceStrategy', type: 'address'},
+				{name: 'replayProtection', type: 'address'},
 				{name: 'nonce', type: 'bytes'},
 				{name: 'data', type: 'bytes'},
 				{name: 'extraDataHash', type: 'bytes32'},
