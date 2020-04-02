@@ -1,26 +1,59 @@
-# Generalized Meta Transaction Processor with EIP-1776 Support
+# EIP-2585 Minimal Meta Transaction Forwarder + EIP-1776 Add-On Demo
 
-DEMO : [https://metatx.eth.link](https://metatx.eth.link)
+The demo is located here: [https://metatx.eth.link](https://metatx.eth.link)
 
-You can find here an [EIP-1776](https://github.com/ethereum/EIPs/issues/1776) compliant Meta Transaction processor as a Singleton Contract
+It implements EIP-1776 (slightly modified, going to update the EIP soon) on top of a minimal forwarder.
 
-It is a full solution for meta-tx including relayer repayment that provides safety guarantees for both relayers and signers
+## EIP-1585 The Minimal Forwarder
 
-Every recipient contract supporting this standard can receive Meta Transaction
+This minimal forwarder is described in EIP-2585
 
-Plus, by approving this smart contract on any ERC20 token, recipient can start receiving payments **without themselves being approved first**
+It implement a barebone though powerful base layer to implement more complex relaying mechanism on top(like EIP-1776). Contract that want to receive meta transaction just need to check that msg.sender == address(forwarder). More complex relaying mechanism can be implemented without requiring change in meta transaction receiver. The demo showcase it with EIP-1776 but system like [GSN](+++) can be implemented too.
 
-As such new ERC20 token can have such contract pre-approved to provide a seamless user experience to their user. Alternatively, they can provide a `permit` call (a la DAI) to provide a similar experience, except for an extra relayed call.
 
-Here a summary of its distinctive features:
+In particular the minimal forward does not implement relayer repayment mechanism but can support it at a higher level. It simply ensure valid signer and replay protection.
 
-*   Require minimum work for recipient. They simply need to check if msg.sender == singleton address
+Here are the current features :
+
+| Feature | In Demo | Pros | Cons | Notes |
+| :---  | :---: |  :--- | :--- | ---: |
+| EIP-1271 / EIP-1654                  | &#x2714; | - allow account contract to use same mechanism and benefit for anything built on top | - add from in signed message and data | 
+|                                      |          |  | - add signatureType |
+| msg.value                            |          | - allow meta tx to send ETH | - add value in signed message (not in data) | Meta tx processor built on top can ensure relayer is rewarded for it (via token exchange for example) |
+| flexible replay protection           | &#x2714; | - can have more flexible or cheaper (in gas) replay protection | - add replayProtection contract address in signed message and data |
+|                                      | | | - make nonce a `bytes` |
+| support building on top with one sig | &#x2714; | - only one sig reduce overhead | - add extraDataHash |
+|                                      | | - easier to support for walle | |
+| fork protection (chainId)            | &#x2714; | - add chainId in signed message (not in data, unless it want to support past chainId, see below) | - When a fork happen, user can decide to not send their meta tx to fork with different chainId |
+| fork transition protection           | | - add chainId in signed message and data | - when a fork happen, any meta tx submitted before the fork remains valid in both | Need to add chainId cache or better use EIP-1965 (not yet in) |
+| EIP-712                              | &#x2714; | - show a default message display for wallet that do not support the forwarder standard but support EIP-712 | - add overhead (compleixity and operations) | Meta tx processor built on top will not be able to shows their parameter via default EIP-712 support (uses extraDataHash) |
+| batch capability                     | &#x2714; | - allow to support batch transaction like `approve` and `call` allowing to support seamless ERC20 payment | - add a function batch |
+
+
+
+## EIP-1776 implemented on top of the forwarder
+
+EIP-1776 is a full solution for meta-tx including relayer repayment that provides safety guarantees for both relayers and signers
+
+It now use EIP-1585 Forwarder for signature verification by using the extraDataHash parameter allowing the EIP-712 message format to be embedded in the EIP-2585 message format.
+
+Every recipient contract supporting EIP-2585 (which only use the basic `_getTxSigner()` mechanism though 20bytes appended to the call) can receive EIP-1776 Meta Transaction
+
+Contrary to earlier version, it removes support for ERC20 transfer as the same can be achieved through batch call that EIP-2585 support.
+
+Use can now transact with ERC-20 by doing an approve and call this way
+
+
+EIP-1776 distinctive features are as follow :
+
+*   Recipient do not need to be midified. They just need to support EIP-2585.
 *   Supports Relayer refund in any ERC-20 tokens
-*   Can send/allow ERC20 token transfer at the same time to the destination, without prior approval. This means you will not need any pre-approval step anymore
+*   By using EIP-2585 batch feature token transfer can be perform with a simultaneous approval. This means you will not need any pre-approval step anymore, for ERC20 contract that support EIP-2585;
 *   Allow you to specify an expiry time (combined with [EIP-1681](https://eips.ethereum.org/EIPS/eip-1681), this allow relayer and user to ensure they get their tx in or not after a certain time, no more guessing)
 *   Ensure the user its tx will be executed with the specific gas specified (though [EIP-1930](https://eips.ethereum.org/EIPS/eip-1930) would be better). While an obvious feature, this has been badly implemented in almost all other meta transaction implementation out there, including GSN and Gnosis Safe (see [https://github.com/gnosis/safe-contracts/issues/100](https://github.com/gnosis/safe-contracts/issues/100)).
 *   Can provide a mechanism by which relayer / user can coordinate to ensure no 2 relayer submit the same meta-tx at the same time at the expense of one)
-*   Use a 2 dimensional nonce, allowing to group transaction in or out of order. This allow user to for example make a ordered batch of transaction in one application and still remains able to do another ordered batch in another application.
+*   Use the flexible replay protection of EIP-2585 which by default use 2 dimensional nonce allowing to group transaction in or out of order. This allow user to for example make a ordered batch of transaction in one application and still remains able to do another ordered batch in another application.
+
 
 ## Implementation Choices
 
@@ -35,7 +68,7 @@ There are roughly 4 type of implementation
 *   **Token Proxy** where the recipient simply need to check for the token address and where all the logic of meta transaction is implemented in the token. This is the approach originally taken by @austingriffith in “Native Meta Transaction”. It is usually limited to be used for meta-tx to be paid in the specific token. Relayer would then need to trust each token for repayment.
 *   **No Proxy** where the recipient is the meta-tx processor and where all the logic get implemented. While it can support relayer repayment, relayer would have to somehow trust each recipient implementation.
 
-While [EIP-1776](https://github.com/ethereum/EIPs/issues/1776) is compatible with any of them, the demo use the singleton proxy pattern. This is for 3 reasons:
+Since [EIP-1776](https://github.com/ethereum/EIPs/issues/1776) use EIP-2585, EIP-1776 follows the SIngleton proxy. This is good for the following reason :
 
 *   we want to support EOA signer so Account-contract is not an option
 *   The whole meta-tx intricacies can be solved in one contract
@@ -57,17 +90,13 @@ Note that while it is possible to implement the refund on top of the proposal, a
 
 ### C) Token Transfer / Approval
 
-While relayer-refund can be on its own, we found that it is trivial to also add the ability for meta-transaction processors to support transfering tokens to recipient.
-
-This is a very powerful feature as it remove the need to pre-approve recipient, if they already support meta-tx.
+While an earlier version of EIP-1776 supported token transfer as primitive, the latest does not as the same can be achieved with batch meta transaction that EIP-2585 supports
 
 ### D) MetaTx Signer Verification
 
 Finally, another differentation possible for non-account based meta transaction is how the signer is being picked up by the recipient.
 
-In [EIP-1776](https://github.com/ethereum/EIPs/issues/1776) we assume that recipient can easily add a from field to their functions as this is already a common practice in many standard.
-
-The standard could easily be changed to support a different mechanism, like appending the signer address to the end of the call data.
+An earlier version of EIP-1776 was using the first paramater as it was easy to support, but the appending of signer data at the end of the call data is more generic
 
 ### E) meta tx failure responsibility
 
@@ -83,18 +112,11 @@ They all seems to believe that the gas parameter passed to the various CALL opco
 
 ### F) Nonce support
 
-There are different strategy to ensure tx cannot get replayed. The simplest one, used by ethereum is to simply have an increasing nonce
-
-[EIP-1776](https://github.com/ethereum/EIPs/issues/1776)provide a 2 dimensional nonce system allowing user to group meta-tx in batches independently of each other
-
-This allows user to create and submit simultaneously multiple batch of ordered meta-tx
+EIP-2586 is very flexible for that. User can choose different mechanism by simply specifying the contract in charge of replay protection. EIP-1776 inherit it.
 
 ## Batching call in one meta-tx
-While the batch/nonce feature allow you to batch tx in order and keep your ability to create transaction that have high gas requirement, they still require user to sign multiple meta-transaction and wait for the relayers to submit all of them.
-We added a special function in the processor that can be invoked as a meta-transaction itself so users can batch multiple calls in one meta-tx without any change to EIP-1776 format.
-They simply make a sign message with the call data and destination (and gas) for each call they want to make and submit this as a call to that specific function.
-See [here](https://github.com/wighawag/singleton-1776-meta-transaction/blob/24fe66e0c40f7c4b2d23b29994e7ef3b3a5f29e2/contracts/src/GenericMetaTxProcessor.sol#L289)
 
+EIP-1776 relies on EIP-2585 for batching support.
 
 ## Multi Relayer Coordination
 
