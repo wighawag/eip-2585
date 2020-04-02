@@ -4,10 +4,9 @@ import "../Libraries/AddressUtils.sol";
 import "../Interfaces/ERC721TokenReceiver.sol";
 import "../Interfaces/ERC721.sol";
 import "../Interfaces/ERC721Enumerable.sol";
+import "../ForwarderReceiverBase.sol";
 
-import "../EIP1776MetaTxReceiverBase.sol";
-
-contract Numbers is /*ERC721, ERC721Enumerable,*/ EIP1776MetaTxReceiverBase { // interface seems to require overrides :(
+contract Numbers is /*ERC721, ERC721Enumerable,*/ ForwarderReceiverBase { // interface seems to require overrides :(
 
     //////////////////////////// ERC721 Events /////////////
     event Transfer(
@@ -41,11 +40,7 @@ contract Numbers is /*ERC721, ERC721Enumerable,*/ EIP1776MetaTxReceiverBase { //
 
     uint256 internal _nextId = 1;
 
-    constructor(address metaTxProcessor) public EIP1776MetaTxReceiverBase(metaTxProcessor) {}
-
-    function isValidApproveOperator(address from) internal returns (bool) {
-        return isValidSender(from) || _operatorsForAll[from][msg.sender];
-    }
+    constructor(address forwarder) public ForwarderReceiverBase(forwarder) {}
 
     function mint(address to) external {
         // TODO only specified minter can do
@@ -61,11 +56,11 @@ contract Numbers is /*ERC721, ERC721Enumerable,*/ EIP1776MetaTxReceiverBase { //
         require(owner != address(0), "DOES_NOT_EXIST");
         require(owner == from, "NOT_OWNER");
         require(to != address(0), "ZERO_ADDRESS");
-        bool isMeta = isMetaTx();
-        if (msg.sender != from && !isMeta) {
+        address sender = _getTxSigner();
+        if (sender != from) {
             require(
-                _operatorsForAll[from][msg.sender] ||
-                (operatorEnabled && _operators[id] == msg.sender),
+                _operatorsForAll[from][sender] ||
+                (operatorEnabled && _operators[id] == sender),
                 "NOT_AUTHORIZED"
             );
         }
@@ -83,7 +78,7 @@ contract Numbers is /*ERC721, ERC721Enumerable,*/ EIP1776MetaTxReceiverBase { //
         emit Transfer(from, to, id);
         if (safe && to.isContract()) {
             require(
-                _checkOnERC721Received(isMeta ? from : msg.sender, from, to, id, data),
+                _checkOnERC721Received(sender, from, to, id, data),
                 "ERC721_TRANSFER_FAILED"
             );
         }
@@ -143,31 +138,15 @@ contract Numbers is /*ERC721, ERC721Enumerable,*/ EIP1776MetaTxReceiverBase { //
 
     /**
      * @notice Approve an operator to spend tokens on the sender behalf
-     * @param sender The address giving the approval
-     * @param operator The address receiving the approval
-     * @param id The id of the token
-     */
-    function approveFor(
-        address sender,
-        address operator,
-        uint256 id
-    ) external {
-        require(sender != address(0), "ZERO_ADDRESS");
-        require(isValidApproveOperator(sender), "NOT_AUTHORIZED");
-        _approveFor(sender, operator, id);
-    }
-
-    /**
-     * @notice Approve an operator to spend tokens on the sender behalf
      * @param operator The address receiving the approval
      * @param id The id of the token
      */
     function approve(address operator, uint256 id) external {
         address owner = _ownerOf(id);
-        // NO META TX here as the first parameter is not the originator but the operator that is meant to be approved
+        address sender = _getTxSigner();
         require(
-            owner == msg.sender || // TODO remove duplicatre check
-            _operatorsForAll[owner][msg.sender],
+            owner == sender || // TODO remove duplicatre check
+            _operatorsForAll[owner][sender],
             "NOT_AUTHORIZED"
         );
         _approveFor(owner, operator, id);
@@ -233,41 +212,11 @@ contract Numbers is /*ERC721, ERC721Enumerable,*/ EIP1776MetaTxReceiverBase { //
 
     /**
      * @notice Set the approval for an operator to manage all the tokens of the sender
-     * @param sender The address giving the approval
-     * @param operator The address receiving the approval
-     * @param approved The determination of the approval
-     */
-    function setApprovalForAllFor(
-        address sender,
-        address operator,
-        bool approved
-    ) external {
-        require(sender != address(0), "ZERO_ADDRESS");
-        require(
-            isValidSender(sender),
-            "NOT_AUTHORIZED"
-        );
-
-        _setApprovalForAll(sender, operator, approved);
-    }
-
-    /**
-     * @notice Set the approval for an operator to manage all the tokens of the sender
      * @param operator The address receiving the approval
      * @param approved The determination of the approval
      */
     function setApprovalForAll(address operator, bool approved) external {
-
-        // NOT META TX ...
-        _setApprovalForAll(msg.sender, operator, approved);
-    }
-
-
-    function _setApprovalForAll(
-        address sender,
-        address operator,
-        bool approved
-    ) internal {
+        address sender = _getTxSigner();
         _operatorsForAll[sender][operator] = approved;
         emit ApprovalForAll(sender, operator, approved);
     }

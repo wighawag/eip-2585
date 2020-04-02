@@ -27,9 +27,6 @@ account = derived(wallet, ($wallet, set) => {
 
     async function fetch() {
         const balance = await wallet.call('DAI', 'balanceOf', $wallet.address);
-        const metaTxProcessor = wallet.getContract('GenericMetaTxProcessor');
-        const allowance = await wallet.call('DAI', 'allowance', $wallet.address, metaTxProcessor.address);
-        const hasApprovedMetaTxProcessorForDAI = allowance.gt('10000000000000000000');
         const numberSale = wallet.getContract('NumberSale');
         const numberSaleAllowance = await wallet.call('DAI', 'allowance', $wallet.address, numberSale.address);
         const hasApprovedNumberSaleForDAI = numberSaleAllowance.gt('10000000000000000000');
@@ -51,7 +48,6 @@ account = derived(wallet, ($wallet, set) => {
             status: 'Loaded',
             daiBalance: balance,
             mtxBalance,
-            hasApprovedMetaTxProcessorForDAI,
             hasApprovedNumberSaleForDAI,
             numbers: items,
             blockNumber
