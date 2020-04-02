@@ -231,13 +231,17 @@ async function purchaseNumber() {
 	const mtxAddress = wallet.getContract('MTX').address;
 	const EIP1776ForwarderWrapperContract = wallet.getContract('EIP1776ForwarderWrapper');
 	const metaTxProcessorAddress = EIP1776ForwarderWrapperContract.address;
-	const txData = await wallet.computeData('MTXNumberSale', 'purchase', $wallet.address, $wallet.address);
+	
+	const approvalCall = await wallet.computeData('MTX', 'approve', saleAddress, '10000000000000000000');
+	const purchaseCall = await wallet.computeData('MTXNumberSale', 'purchase', $wallet.address, $wallet.address);
+    const meta_transaction = await wallet.computeData('EIP712Forwarder', 'batch', [approvalCall, purchaseCall]);
+
 	const nonce = purchase_nonce ? BigNumber.from(purchase_nonce) : await wallet.call('EIP712Forwarder', 'getNonce', $wallet.address, purchase_batchId);
 	const batchNonce = nonce; // TODO // for now only batch 0
 	
 	const wrapper_message = {
       tokenContract: mtxAddress,
-	  amount: BigNumber.from(purchase_amount).mul('1000000000000000000').toString(),
+	  amount: 0, //BigNumber.from(purchase_amount).mul('1000000000000000000').toString(), // TODO remove that value
 	  expiry: purchase_expiry,
 	  txGas: purchase_txGas,
 	  baseGas: 100000,
@@ -268,11 +272,11 @@ async function purchaseNumber() {
 
 	const message = {
       from: $wallet.address,
-	  to: saleAddress,
+	  to: meta_transaction.to,
 	  chainId: 31337, 
 	  nonceStrategy: zeroAddress, 
 	  nonce: ethers.utils.defaultAbiCoder.encode(['uint256'], [batchNonce]),
-	  data: txData.data,
+	  data: meta_transaction.data,
 	  extraDataHash: wrapper_hash
 	};
 	const msgParams = JSON.stringify({
