@@ -12,6 +12,7 @@
     "eth-sig-util": "^2.5.3"
   },
   "scripts": {
+    "test": "buidler test",
     "dev": "buidler listen --export ../webapp/src/dev_contractsInfo.json",
     "deploy:local": "buidler --network localhost deploy --export ../webapp/src/dev_contractsInfo.json",
     "deploy:rinkeby": "buidler deploy --network rinkeby --export ../webapp/src/contractsInfo.json",
