@@ -114,42 +114,43 @@ describe("EIP712Forwarder", () => {
 });
 
 describe("EIP1776ForwarderWrapper", () => {
+  let wrapper_eip712Signer;
   beforeEach(async () => {
     await deployments.run(['EIP1776ForwarderWrapper', 'DAI']);
     const forwarderContract = deployments.get('EIP1776ForwarderWrapper');
     await deployments.deploy("ForwarderReceiver",  {from: deployer, gas: 4000000}, "ForwarderReceiver", forwarderContract.address);
-  })
-  
-  it("test forwarding call ", async function() {
-    const EIP1776ForwarderWrapper = deployments.get('EIP1776ForwarderWrapper');
-    const receiver = deployments.get('ForwarderReceiver');
-    const receiverContract = instantiateContract(receiver);
 
-    const wrapper_eip712Signer = createEIP712Signer({
+    const EIP1776ForwarderWrapper = deployments.get('EIP1776ForwarderWrapper');
+    wrapper_eip712Signer = createEIP712Signer({
       types : {
         EIP712Domain: [
           {name: 'name', type: 'string'},
           {name: 'version', type: 'string'},
           {name: 'verifyingContract', type: 'address'}
         ],
-        // "ERC20MetaTransaction(address tokenContract,uint256 amount,uint256 expiry,uint256 txGas,uint256 baseGas,uint256 tokenGasPrice,address relayer)"
-        ERC20MetaTransaction: [
-          {name: 'tokenContract', type: 'address'},
-          {name: 'amount', type: 'uint256'},
-          {name: 'expiry', type: 'uint256'},
+        EIP1776_MetaTransaction: [
           {name: 'txGas', type: 'uint256'},
           {name: 'baseGas', type: 'uint256'},
+          {name: 'expiry', type: 'uint256'},
+          {name: 'tokenContract', type: 'address'},
           {name: 'tokenGasPrice', type: 'uint256'},
           {name: 'relayer', type: 'address'},
         ]
       },
       domain: {
-        name: 'Generic Meta Transaction',
+        name: 'EIP-1776 Meta Transaction',
         version: '1',
         verifyingContract: EIP1776ForwarderWrapper.address
       },
-      primaryType: 'ERC20MetaTransaction',
+      primaryType: 'EIP1776_MetaTransaction',
     });
+  })
+  
+  it("test forwarding call ", async function() {
+    const receiver = deployments.get('ForwarderReceiver');
+    const receiverContract = instantiateContract(receiver);
+
+    
     const wrapper_params = {
       tokenContract: zeroAddress,
       amount: 0,
@@ -201,7 +202,7 @@ describe("EIP1776ForwarderWrapper", () => {
     const signature = await eip712Signer.sign(metaUserWallet, message);
     
     // send transaction
-    const receipt = await sendTxAndWait({from: relayer}, 'EIP1776ForwarderWrapper', 'executeMetaTransaction', // abiEvents option to merge events abi for parsing receipt
+    const receipt = await sendTxAndWait({from: relayer}, 'EIP1776ForwarderWrapper', 'relay', // abiEvents option to merge events abi for parsing receipt
       message,
       0,
       signature,
@@ -213,35 +214,9 @@ describe("EIP1776ForwarderWrapper", () => {
   });
 
   it("test batch call ", async function() {
-    const EIP1776ForwarderWrapper = deployments.get('EIP1776ForwarderWrapper');
     const receiver = deployments.get('ForwarderReceiver');
     const receiverContract = instantiateContract(receiver);
 
-    const wrapper_eip712Signer = createEIP712Signer({
-      types : {
-        EIP712Domain: [
-          {name: 'name', type: 'string'},
-          {name: 'version', type: 'string'},
-          {name: 'verifyingContract', type: 'address'}
-        ],
-        // "ERC20MetaTransaction(address tokenContract,uint256 amount,uint256 expiry,uint256 txGas,uint256 baseGas,uint256 tokenGasPrice,address relayer)"
-        ERC20MetaTransaction: [
-          {name: 'tokenContract', type: 'address'},
-          {name: 'amount', type: 'uint256'},
-          {name: 'expiry', type: 'uint256'},
-          {name: 'txGas', type: 'uint256'},
-          {name: 'baseGas', type: 'uint256'},
-          {name: 'tokenGasPrice', type: 'uint256'},
-          {name: 'relayer', type: 'address'},
-        ]
-      },
-      domain: {
-        name: 'Generic Meta Transaction',
-        version: '1',
-        verifyingContract: EIP1776ForwarderWrapper.address
-      },
-      primaryType: 'ERC20MetaTransaction',
-    });
     const wrapper_params = {
       tokenContract: zeroAddress,
       amount: 0,
@@ -297,7 +272,7 @@ describe("EIP1776ForwarderWrapper", () => {
     const signature = await eip712Signer.sign(metaUserWallet, message);
     
     // send transaction
-    const receipt = await sendTxAndWait({from: relayer}, 'EIP1776ForwarderWrapper', 'executeMetaTransaction', // abiEvents option to merge events abi for parsing receipt
+    const receipt = await sendTxAndWait({from: relayer}, 'EIP1776ForwarderWrapper', 'relay', // abiEvents option to merge events abi for parsing receipt
       message,
       0,
       signature,

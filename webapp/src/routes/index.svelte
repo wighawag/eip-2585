@@ -103,34 +103,36 @@ async function sendMetaTx(calls, {batchId, batchNonce}, {tokenContractName, expi
 	const nonce = batchNonce; // TODO .add(batchId.mul(BigNumber.from(2).pow(128))) // TODO // for now only batch 0
 	
 	const wrapper_message = {
-      tokenContract,
-	  amount: 0, // TODO remove
-	  expiry,
-	  txGas,
+      txGas,
 	  baseGas: baseGas || 100000,
+	  expiry,
+	  tokenContract,
 	  tokenGasPrice,
 	  relayer: relayerAddress,
 	}
 	const wrapper_hash = '0x' + TypedDataUtils.sign({
-		types:{
-			EIP712Domain:[
-				{name:"name",type:"string"},
-				{name:"version",type:"string"},
-				{name:"verifyingContract",type:"address"}
-			],
-			ERC20MetaTransaction:[
-				{name:"tokenContract",type:"address"},
-				{name:"amount",type:"uint256"}, // TODO remove
-				{name:"expiry",type:"uint256"},
-				{name:"txGas",type:"uint256"},
-				{name:"baseGas",type:"uint256"},
-				{name:"tokenGasPrice",type:"uint256"},
-				{name:"relayer",type:"address"}
-			],
-		},
-		primaryType:"ERC20MetaTransaction",
-		domain:{name:"Generic Meta Transaction",version:"1",verifyingContract: EIP1776ForwarderWrapperContract.address},
-		message: wrapper_message
+		types : {
+        EIP712Domain: [
+          {name: 'name', type: 'string'},
+          {name: 'version', type: 'string'},
+          {name: 'verifyingContract', type: 'address'}
+        ],
+        EIP1776_MetaTransaction: [
+          {name: 'txGas', type: 'uint256'},
+          {name: 'baseGas', type: 'uint256'},
+          {name: 'expiry', type: 'uint256'},
+          {name: 'tokenContract', type: 'address'},
+          {name: 'tokenGasPrice', type: 'uint256'},
+          {name: 'relayer', type: 'address'},
+        ]
+      },
+      domain: {
+        name: 'EIP-1776 Meta Transaction',
+        version: '1',
+        verifyingContract: EIP1776ForwarderWrapperContract.address
+      },
+	  primaryType: 'EIP1776_MetaTransaction',
+	  message: wrapper_message
 	}).toString('hex');
 
 	const message = {
@@ -219,7 +221,7 @@ async function sendMetaTx(calls, {batchId, batchNonce}, {tokenContractName, expi
 
 	let tx 
 	try {
-		tx = await metaTxProcessor.executeMetaTransaction(
+		tx = await metaTxProcessor.functions.relay(
 			message,
 			0,
 			response,
