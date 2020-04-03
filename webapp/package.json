@@ -33,6 +33,7 @@
     "sapper": "git://github.com/wighawag/sapper.git#relative_baseUrl",
     "svelte": "^3.0.0",
     "svelte-loader": "^2.9.0",
+    "svelte-loader-hot": "^0.3.0",
     "svelte-preprocess": "^3.3.0",
     "tailwindcss": "^1.1.4",
     "webpack": "^4.7.0"

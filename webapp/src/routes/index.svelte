@@ -295,9 +295,11 @@ async function sendMetaTx(calls, {batchId, batchNonce, value}, {tokenContractNam
 
 <div class="bg-gray-200 overflow-hidden rounded-lg">
 	<div class="px-4 py-5 sm:p-6">	
-		<p>This demo showcase the benefit of EIP-2585 and EIP-1776 standards and how they can be set up to provide a seamingless experience to user without ether. More details <a class="underline" href="about">here</a>.</p>		
+		<p> dsds dsd sdsaS This demo showcase the benefit of EIP-2585 and EIP-1776 standards and how they can be set up to provide a seamingless experience to user without ether. More details <a class="underline" href="about">here</a>.</p>		
 	</div>
 </div>
+
+
 
 <WalletWrapper>
 	{#if $account.status == 'Loading'}

@@ -9,6 +9,7 @@ const useProdContract = process.env.PROD_CONTRACT == 'true';
 const mode = process.env.NODE_ENV || "development";
 // const prod = mode === "production";
 const dev = mode === 'development';
+const hot = dev && process.env.HOT != 0
 
 const contractsInfoPath = path.resolve(__dirname, "./src/contractsInfo.json");
 const devContractsInfoPath = path.resolve(
@@ -42,12 +43,16 @@ module.exports = {
 				{
 					test: /\.(svelte|html)$/,
 					use: {
-						loader: 'svelte-loader',
+						loader: 'svelte-loader-hot',
 						options: {
-							preprocess,
-							dev,
+							dev, // NOTE dev mode is REQUIRED for HMR
 							hydratable: true,
-							hotReload: false // pending https://github.com/sveltejs/svelte/issues/2377
+              				hotReload: hot,
+							hotOptions: {
+								// optimistic will try to recover from runtime errors during
+								// component init (instead of doing a full reload)
+								optimistic: true
+							}
 						}
 					}
 				}
@@ -55,17 +60,14 @@ module.exports = {
 		},
 		mode,
 		plugins: [
-			// pending https://github.com/sveltejs/svelte/issues/2377
-			// dev && new webpack.HotModuleReplacementPlugin(),
+			// pending https://github.com/sveltejs/svelte/issues/3632
+			hot && new webpack.HotModuleReplacementPlugin(),
 			new webpack.DefinePlugin({
 				'process.browser': true,
 				'process.env.NODE_ENV': JSON.stringify(mode)
 			}),
 		].filter(Boolean),
-		devtool: dev && 'inline-source-map',
-		devServer: {
-			hot: true,
-		}
+		devtool: dev && 'inline-source-map'
 	},
 
 	server: {
@@ -79,7 +81,7 @@ module.exports = {
 				{
 					test: /\.(svelte|html)$/,
 					use: {
-						loader: 'svelte-loader',
+						loader: 'svelte-loader-hot',
 						options: {
 							preprocess,
 							css: false,
