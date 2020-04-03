@@ -33,14 +33,14 @@ describe("Forwarder", () => {
       replayProtection: zeroAddress,
       nonce: '0x0000000000000000000000000000000000000000000000000000000000000000',
       data,
-      extraDataHash: '0x0000000000000000000000000000000000000000000000000000000000000000'
+      innerMessageHash: '0x0000000000000000000000000000000000000000000000000000000000000000'
     };
 
     // generate signature
     const signature = await signMessage(
       metaUserWallet,
       ['address', 'address', 'uint256', 'uint256', 'address',       'bytes', 'bytes', 'bytes32'],
-      ['from',    'to',      'value',   'chainId', 'replayProtection', 'nonce', 'data',  'extraDataHash'],
+      ['from',    'to',      'value',   'chainId', 'replayProtection', 'nonce', 'data',  'innerMessageHash'],
       message
     );
     
@@ -76,7 +76,7 @@ describe("EIP712Forwarder", () => {
       replayProtection: zeroAddress,
       nonce: '0x0000000000000000000000000000000000000000000000000000000000000000',
       data,
-      extraDataHash: '0x0000000000000000000000000000000000000000000000000000000000000000'
+      innerMessageHash: '0x0000000000000000000000000000000000000000000000000000000000000000'
     };
 
     // generate signature
@@ -94,7 +94,7 @@ describe("EIP712Forwarder", () => {
           {name: 'replayProtection', type: 'address'},
           {name: 'nonce', type: 'bytes'},
           {name: 'data', type: 'bytes'},
-          {name: 'extraDataHash', type: 'bytes32'},
+          {name: 'innerMessageHash', type: 'bytes32'},
         ]
       },
       domain: {
@@ -176,7 +176,7 @@ describe("EIP1776ForwarderWrapper", () => {
       replayProtection: zeroAddress,
       nonce: abiEncode(['uint256'], [0]), // '0x0000000000000000000000000000000000000000000000000000000000000000'
       data,
-      extraDataHash: wrapper_hash
+      innerMessageHash: wrapper_hash
     };
 
     // generate signature
@@ -194,7 +194,7 @@ describe("EIP1776ForwarderWrapper", () => {
           {name: 'replayProtection', type: 'address'},
           {name: 'nonce', type: 'bytes'},
           {name: 'data', type: 'bytes'},
-          {name: 'extraDataHash', type: 'bytes32'},
+          {name: 'innerMessageHash', type: 'bytes32'},
         ]
       },
       domain: {
@@ -254,7 +254,7 @@ describe("EIP1776ForwarderWrapper", () => {
       replayProtection: zeroAddress,
       nonce: abiEncode(['uint256'], [0]), // '0x0000000000000000000000000000000000000000000000000000000000000000'
       data,
-      extraDataHash: wrapper_hash
+      innerMessageHash: wrapper_hash
     };
 
     // generate signature
@@ -272,7 +272,7 @@ describe("EIP1776ForwarderWrapper", () => {
           {name: 'replayProtection', type: 'address'},
           {name: 'nonce', type: 'bytes'},
           {name: 'data', type: 'bytes'},
-          {name: 'extraDataHash', type: 'bytes32'},
+          {name: 'innerMessageHash', type: 'bytes32'},
         ]
       },
       domain: {

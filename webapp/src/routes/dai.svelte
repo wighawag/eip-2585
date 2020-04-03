@@ -256,7 +256,7 @@ async function sendMetaTx(calls, {batchId, batchNonce, value}, {tokenContractNam
 	  replayProtection: zeroAddress, 
 	  nonce: ethers.utils.defaultAbiCoder.encode(['uint256'], [nonce]),
 	  data: meta_transaction.data,
-	  extraDataHash: wrapper_hash
+	  innerMessageHash: wrapper_hash
 	};
 	const msgParams = JSON.stringify({
 		types:{
@@ -272,7 +272,7 @@ async function sendMetaTx(calls, {batchId, batchNonce, value}, {tokenContractNam
 				{name: 'replayProtection', type: 'address'},
 				{name: 'nonce', type: 'bytes'},
 				{name: 'data', type: 'bytes'},
-				{name: 'extraDataHash', type: 'bytes32'},
+				{name: 'innerMessageHash', type: 'bytes32'},
 			],
     	},
 		primaryType:"MetaTransaction",

@@ -29,16 +29,16 @@ Here are the current features :
 | flexible replay protection           | &#x2714; | - can have more flexible or cheaper (in gas) replay protection | - add replayProtection contract address in signed message and data |
 |                                      | | | - make nonce a `bytes` |
 | |
-| support building on top with one sig | &#x2714; | - only one sig reduce overhead | - add extraDataHash |
+| support building on top with one sig | &#x2714; | - only one sig reduce overhead | - add innerMessageHash |
 |                                      | | - easier to support for walle | |
 | |
 | fork protection (chainId)            | &#x2714; | - add chainId in signed message (not in data, unless it want to support past chainId, see below) | - When a fork happen, user can decide to not send their meta tx to fork with different chainId |
 | |
 | fork transition protection           | | - add chainId in signed message and data | - when a fork happen, any meta tx submitted before the fork remains valid in both | Need to add chainId cache or better use EIP-1965 (not yet in) |
 | |
-| EIP-712                              | &#x2714; | - show a default message display for wallet that do not support the forwarder standard but support EIP-712 | - add overhead (compleixity and operations) | Meta tx processor built on top will not be able to shows their parameter via default EIP-712 support (uses extraDataHash) |
+| EIP-712                              | &#x2714; | - show a default message display for wallet that do not support the forwarder standard but support EIP-712 | - add overhead (compleixity and operations) | Meta tx processor built on top will not be able to shows their parameter via default EIP-712 support (uses innerMessageHash) |
 | |
-| Basic Signature                      | &#x2714; | - simpler | - does not have nice default display | Meta tx processor built on top will not be able to display their info neither (uses extraDataHash) |
+| Basic Signature                      | &#x2714; | - simpler | - does not have nice default display | Meta tx processor built on top will not be able to display their info neither (uses innerMessageHash) |
 | |
 | batch capability                     | &#x2714; | - allow to support batch transaction like `approve` and `call` allowing to support seamless ERC20 payment | - add a function batch |
 
@@ -48,7 +48,7 @@ Here are the current features :
 
 EIP-1776 is a full solution for meta-tx including relayer repayment that provides safety guarantees for both relayers and signers
 
-It now use EIP-2585 Forwarder for signature verification by using the extraDataHash parameter allowing the EIP-712 message format to be embedded in the EIP-2585 message format.
+It now use EIP-2585 Forwarder for signature verification by using the innerMessageHash parameter allowing the EIP-712 message format to be embedded in the EIP-2585 message format.
 
 Every recipient contract supporting EIP-2585 (which only use the basic `_getTxSigner()` mechanism though 20bytes appended to the call) can receive EIP-1776 Meta Transaction
 

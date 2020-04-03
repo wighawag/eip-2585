@@ -35,7 +35,7 @@ contract EIP1776ForwarderWrapper {
         address tokenReceiver
     ) public payable returns (bool success, bytes memory returnData) {
         _ensureParametersValidity(callParams);
-        _ensureCorrectCallParams(message.extraDataHash, callParams);
+        _ensureCorrectCallParams(message.innerMessageHash, callParams);
         (success, returnData) = _forwardMetaTx(message, signatureType, signature, callParams, tokenReceiver);
     }
 

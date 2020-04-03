@@ -61,7 +61,7 @@ contract Forwarder is ReplayProtection {
         address replayProtection;
         bytes nonce;
         bytes data;
-        bytes32 extraDataHash;
+        bytes32 innerMessageHash;
 	}
 
     /// @notice forward call from EOA signed message
@@ -70,7 +70,7 @@ contract Forwarder is ReplayProtection {
     /// @param message.replayProtection contract address that check and update nonce
     /// @param message.nonce nonce value
     /// @param message.data call data
-    /// @param message.extraDataHash extra data hashed that can be used as embedded message for implementing more complex scenario, with one sig
+    /// @param message.innerMessageHash extra data hashed that can be used as embedded message for implementing more complex scenario, with one sig
     /// @param signatureType signatureType either EOA, EIP1271 or EIP1654
     /// @param signature signature
     function forward(
@@ -182,7 +182,7 @@ contract Forwarder is ReplayProtection {
     function _encodeMessage(Message memory message) internal virtual view returns (bytes memory) {
         return SigUtil.eth_sign_prefix(
             keccak256(
-                abi.encodePacked(message.from, message.to, msg.value, message.chainId, message.replayProtection, message.nonce, message.data, message.extraDataHash)
+                abi.encodePacked(message.from, message.to, msg.value, message.chainId, message.replayProtection, message.nonce, message.data, message.innerMessageHash)
             )
         );
     }
