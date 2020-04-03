@@ -1,0 +1,15 @@
+{
+  "name": "scripts",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "base-path-converter": "^1.0.1",
+    "form-data": "^3.0.0",
+    "recursive-fs": "^1.1.2",
+    "slash": "^3.0.0"
+  },
+  "devDependencies": {
+    "axios": "^0.19.2"
+  }
+}

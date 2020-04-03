@@ -28,29 +28,30 @@ $: showModal = ($wallet && $wallet.status && $wallet.status !== 'Loading' && ((!
 {:else if $wallet.status == 'Unlocking'}
 <MessageBox> Please accept the connection request </MessageBox>
 {:else if $wallet.status == 'NoWallet'}
-<br/>
-  <h3>You need a web3 wallet</h3>
+<MessageBox>You need a web3 wallet</MessageBox>
 {:else if $wallet.status == 'CreatingLocalWallet'}
-<br/>
-    <h3>Creating Local Wallet</h3>
+  <MessageBox>Creating Local Wallet</MessageBox>
 {:else if $wallet.status == 'Opera_FailedChainId'}
-<br/>
+  <MessageBox>
     <h3 class="errorTitle"> You are using Opera </h3>
     <h5 class="errorMessage">You need to set up your wallet. if a popup did not come up you'll need to go into Opera setting to set it up.</h5>
     <button class="button" on:click="{() => wallet.retry()}">Retry</button>    
+  </MessageBox>
 {:else if $wallet.status == 'Opera_Locked'}
-<br/>
+  <MessageBox>
     <h3 class="errorTitle"> You are using Opera </h3>
     <h5 class="errorMessage"> You need to authorize access to your wallet. </h5>
     <button class="button" on:click="{() => wallet.retry()}">Request Access</button>
+  </MessageBox>
 {:else if $wallet.status == 'Error'}
-<br/>
+  <MessageBox>
     <h3 class="errorTitle"> There were an Error </h3>
     <h5 class="errorMessage">{$wallet.error.message}</h5>
     <button class="button" on:click="{() => wallet.retry()}">Retry</button>
+  </MessageBox>
 {:else if $wallet.status == 'Ready'}
     {#if $wallet.chainNotSupported}
-    <br/>
+      <MessageBox>
         <h3 class="errorTitle"> You are on an unsupported chain</h3>
         {#if $wallet.supportedChains.length == 1}
         <h3> Please change your chain to {$wallet.supportedChains[0].name}</h3>
@@ -68,9 +69,11 @@ $: showModal = ($wallet && $wallet.status && $wallet.status !== 'Loading' && ((!
             <h5 class="errorMessage">You might need to reload the page after switching to the new chain</h5>
             <button class="button" on:click="{() => wallet.reloadPage()}">Reload</button>
         {/if}
+      </MessageBox>
     {:else if typeof $wallet.initialBalance !== 'undefined' && $wallet.initialBalance == 0}
-    <br/>
+      <MessageBox>
         <h3> You have zero balance</h3>
+      </MessageBox>
     {:else}
         <!-- {#if $wallet.requestingSignature}
             <h3> Please accept the transaction request </h3>
