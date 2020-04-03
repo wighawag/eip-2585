@@ -18,10 +18,10 @@ contract EIP712Forwarder is Forwarder {
     );
 
     bytes32 constant METATRANSACTION_TYPEHASH = keccak256(
-        "MetaTransaction(address from,address to,uint256 chainId,address replayProtection,bytes nonce,bytes data,bytes32 extraDataHash)"
+        "MetaTransaction(address from,address to,uint256 value,uint256 chainId,address replayProtection,bytes nonce,bytes data,bytes32 extraDataHash)"
     );
 
-    function _encodeMessage(Message memory message) internal override pure returns (bytes memory) {
+    function _encodeMessage(Message memory message) internal override view returns (bytes memory) {
         return abi.encodePacked(
             "\x19\x01",
             DOMAIN_SEPARATOR,
@@ -29,6 +29,7 @@ contract EIP712Forwarder is Forwarder {
                 METATRANSACTION_TYPEHASH,
                 message.from,
                 message.to,
+                msg.value,
                 message.chainId,
                 message.replayProtection,
                 keccak256(message.nonce),

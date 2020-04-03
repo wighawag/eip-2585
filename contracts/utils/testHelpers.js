@@ -1,5 +1,30 @@
 module.exports = {
     zeroAddress: '0x0000000000000000000000000000000000000000',
+    extractRevertMessageFromHexString(hexData) {
+        let revertMessage = '';
+        const messageSig = hexData.slice(2,10);
+        if (messageSig != '08c379a0') {
+            throw new Error(`Invalid Revert message prefix : ${messageSig}`);
+        }
+        const messageLL = hexData.slice(10, 10 + 64);
+        if (messageLL != '0000000000000000000000000000000000000000000000000000000000000020') {
+            throw new Error(`Invalid Revert message data length : ${messageLL}`);
+        }
+        const messageL = hexData.slice(10 + 64, 10 + 64 + 64);
+        let messageLength = 0;
+        try {
+            messageLength = parseInt(messageL, 16);
+        } catch (e) {
+            throw new Error(`cannot parse message length : ${messageL}`);
+        }
+        if (messageLength > 0) {
+            revertMessage = hexData.slice(10 + 64 + 64, 10 + 64 + 64 + messageLength * 2);
+        } else {
+            revertMessage = '';
+        }
+        console.log({hexData, revertMessage, messageSig, messageLL, messageL, messageLength, length : hexData.length});
+        return Buffer.from(revertMessage, 'hex').toString('utf8');
+    },
     async expectRevert(promise, expectedMessage) {
         let receipt;
         try {

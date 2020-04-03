@@ -33,7 +33,7 @@ contract EIP1776ForwarderWrapper {
         bytes memory signature,
         CallParams memory callParams,
         address tokenReceiver
-    ) public returns (bool success, bytes memory returnData) {
+    ) public payable returns (bool success, bytes memory returnData) {
         _ensureParametersValidity(callParams);
         _ensureCorrectCallParams(message.extraDataHash, callParams);
         (success, returnData) = _forwardMetaTx(message, signatureType, signature, callParams, tokenReceiver);
@@ -99,15 +99,12 @@ contract EIP1776ForwarderWrapper {
         bytes memory signature,
         uint256 gasLimit
     ) internal returns (bool, bytes memory) {
-        try _forwarder.forward{gas: gasLimit}(message, signatureType, signature) {
+        try _forwarder.forward{gas: gasLimit, value: msg.value}(message, signatureType, signature) {
+            return (true, "");
         } catch (bytes memory returnData) {
             assert(gasleft() > gasLimit / 63); // not enough gas provided, assert to throw all gas // TODO use EIP-1930
             return (false, returnData);
         }
-        return (true, "");
-        // (bool success, bytes memory returnData) = address(_forwarder).call.gas(gasLimit)(abi.encodeWithSignature("forward(Message,SignatureType,signature)", message, signatureType, signature));
-        // assert(gasleft() > gasLimit / 63); // not enough gas provided, assert to throw all gas // TODO use EIP-1930
-        // return (success, returnData);
     }
 
     function _executeWithSpecificGasAndChargeForIt(

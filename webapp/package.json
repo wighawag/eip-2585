@@ -1,6 +1,6 @@
 {
-  "name": "generic-meta-transaction-webapp",
-  "description": "generic-meta-transaction webapp",
+  "name": "meta-transaction-demo-webapp",
+  "description": "Meta Transaction Demo Webapp",
   "version": "0.0.1",
   "scripts": {
     "dev-prod-contracts": "cross-env PROD_CONTRACT=true sapper dev",

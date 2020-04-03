@@ -62,7 +62,10 @@ module.exports = {
 				'process.env.NODE_ENV': JSON.stringify(mode)
 			}),
 		].filter(Boolean),
-		devtool: dev && 'inline-source-map'
+		devtool: dev && 'inline-source-map',
+		devServer: {
+			hot: true,
+		}
 	},
 
 	server: {

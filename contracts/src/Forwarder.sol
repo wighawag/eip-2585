@@ -77,7 +77,7 @@ contract Forwarder is ReplayProtection {
         Message memory message,
         SignatureType signatureType,
         bytes memory signature
-    ) public { // external with ABIEncoderV2 Struct is not supported in solidity < 0.6.4
+    ) public payable { // external with ABIEncoderV2 Struct is not supported in solidity < 0.6.4
         require(_isValidChainId(message.chainId), "INVALID_CHAIN_ID");
         _checkSigner(message, signatureType, signature);
         // optimization to avoid call if using default nonce strategy
@@ -88,10 +88,7 @@ contract Forwarder is ReplayProtection {
             require(ReplayProtection(message.replayProtection).checkAndUpdateNonce(message.from, message.nonce), "NONCE_INVALID");
         }
 
-        // TODO? allow the forwarder (calling forward) to pass msg.value on behalf of the message signer ?
-        // if so we could simply use the msg.value as part of the message (no need to pass it in in the struct)
-        (bool success, bytes memory returnData) = message.to.call(abi.encodePacked(message.data, message.from));
-        require(success, string(returnData));
+        _call(message.from, message.to, msg.value, message.data);
     }
 
 
@@ -100,21 +97,19 @@ contract Forwarder is ReplayProtection {
     struct Call {
         address to;
         bytes data;
+        uint256 value;
     }
 
     /// @notice batcher function that can be called as part of a meta transaction (allowing to batch call atomically)
     /// @param calls list of call data and destination
-    function batch(Call[] memory calls) public { // external with ABIEncoderV2 Struct is not supported in solidity < 0.6.4
+    function batch(Call[] memory calls) public payable { // external with ABIEncoderV2 Struct is not supported in solidity < 0.6.4
         require(msg.sender == address(this), "FORWARDER_ONLY");
         address signer;
         bytes memory data = msg.data;
         uint256 length = msg.data.length;
         assembly { signer := and(mload(sub(add(data, length), 0x00)), 0xffffffffffffffffffffffffffffffffffffffff) }
         for(uint256 i = 0; i < calls.length; i++) {
-            (bool success, bytes memory returnData) = calls[i].to.call(abi.encodePacked(calls[i].data, signer));
-            if (!success) {
-                revert(string(returnData)); // abort on first failure
-            }
+            _call(signer, calls[i].to, calls[i].value, calls[i].data);
         }
     }
 
@@ -146,6 +141,22 @@ contract Forwarder is ReplayProtection {
 
     // ///////////////////////////////// INTERNAL ////////////////////////////////////////////
 
+    function _call(
+        address from,
+        address to,
+        uint256 value,
+        bytes memory data
+    ) internal {
+        (bool success,) = to.call.value(value)(abi.encodePacked(data, from));
+        if (!success) {
+            assembly {
+                let returnDataSize := returndatasize()
+                returndatacopy(0, 0, returnDataSize)
+                revert(0, returnDataSize)
+            }
+        }
+    }
+
     function _checkSigner(
         Message memory message,
         SignatureType signatureType,
@@ -168,10 +179,10 @@ contract Forwarder is ReplayProtection {
         return chainId == _chainId;
     }
 
-    function _encodeMessage(Message memory message) internal virtual pure returns (bytes memory) {
+    function _encodeMessage(Message memory message) internal virtual view returns (bytes memory) {
         return SigUtil.eth_sign_prefix(
             keccak256(
-                abi.encodePacked(message.from, message.to, message.chainId, message.replayProtection, message.nonce, message.data, message.extraDataHash)
+                abi.encodePacked(message.from, message.to, msg.value, message.chainId, message.replayProtection, message.nonce, message.data, message.extraDataHash)
             )
         );
     }

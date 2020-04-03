@@ -1,9 +1,8 @@
 {
-  "name": "generic-meta-transaction-contracts",
+  "name": "meta-transaction-demo-contracts",
   "version": "0.0.1",
-  "description": "Generic Meta Transaction Processor",
+  "description": "Meta Transaction Demo Webapp",
   "main": "index.js",
-  "repository": "https://github.com/wighawag/singleton-1776-meta-transaction",
   "author": "wighawag",
   "license": "GPL",
   "devDependencies": {

@@ -1,7 +1,8 @@
 {
-  "name": "singleton-1776-meta-transaction",
+  "name": "meta-transaction-demo",
   "version": "0.0.1",
   "license": "GPL",
+  "repository": "https://github.com/wighawag/todo",
   "scripts": {
     "test": "npm --prefix contracts run  test",
     "webapp": "npm --prefix webapp run dev",

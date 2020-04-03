@@ -13,6 +13,7 @@ const zeroAddress = '0x0000000000000000000000000000000000000000';
 
 const { Wallet, Contract, BigNumber, AbiCoder } = ethers;
 
+let purchase_value = 0;
 let purchase_expiry = 1610600198;
 let purchase_txGas = 1000000;
 let purchase_batchId = 0;
@@ -20,6 +21,7 @@ let purchase_nonce = null;
 let purchase_tokenGasPrice = 0;
 let purchase_relayer = "0x0000000000000000000000000000000000000000";
 
+let transfer_value = 0;
 let transfer_expiry = 1610600198;
 let transfer_txGas = 1000000;
 let transfer_batchId = 0;
@@ -37,7 +39,7 @@ async function relay() {
 function errorToAscii(str1) {
 	const l = 64 + 64 + 10;
 	if (str1.length <= l) {
-		return "UNKNOWN ERROR";
+		return "UNKNOWN ERROR (could be an OUT OF GAS error, check txGas value)";
 	}
 	str1 = str1.slice(l);
 	let str = '';
@@ -61,9 +63,11 @@ async function getEventsFromReceipt(ethersProvider, ethersContract, sig, receipt
 
 async function transferFirstNumber() {
 	const calls = [await wallet.computeData('Numbers', 'transferFrom', $wallet.address, transferTo, $account.numbers[0])];
+	calls[0].value = 0;
 	return sendMetaTx(calls, {
 		batchId: transfer_batchId,
-		batchNonce: transfer_nonce
+		batchNonce: transfer_nonce,
+		value: transfer_value
 	},
 	{
 		tokenContractName: 'MTX',
@@ -78,11 +82,14 @@ async function transferFirstNumber() {
 async function purchaseNumber() {
 	const saleAddress = wallet.getContract('MTXNumberSale').address;
 	const approvalCall = await wallet.computeData('MTX', 'approve', saleAddress, '10000000000000000000');
+	approvalCall.value = 0;
 	const purchaseCall = await wallet.computeData('MTXNumberSale', 'purchase', $wallet.address, $wallet.address);
+	purchaseCall.value = 0;
 	const calls = [approvalCall, purchaseCall];
 	return sendMetaTx(calls, {
 		batchId: purchase_batchId,
-		batchNonce: purchase_nonce
+		batchNonce: purchase_nonce,
+		value: purchase_value
 	},
 	{
 		tokenContractName: 'MTX',
@@ -93,7 +100,14 @@ async function purchaseNumber() {
 	});
 }
 
-async function sendMetaTx(calls, {batchId, batchNonce}, {tokenContractName, expiry, txGas, baseGas, tokenGasPrice, relayerAddress}) {
+async function sendMetaTx(calls, {batchId, batchNonce, value}, {tokenContractName, expiry, txGas, baseGas, tokenGasPrice, relayerAddress}) {
+	value = value || 0;
+
+	if (value != 0 && value != '0') {
+		$metatx = {status: 'error', message: 'Relayer will not execute it as msg.value > 0'};
+		return false;
+	} 
+
 	const tokenContract = wallet.getContract(tokenContractName).address;
 	
 	const EIP1776ForwarderWrapperContract = wallet.getContract('EIP1776ForwarderWrapper');
@@ -138,6 +152,7 @@ async function sendMetaTx(calls, {batchId, batchNonce}, {tokenContractName, expi
 	const message = {
       from: $wallet.address,
 	  to: meta_transaction.to,
+	  value,
 	  chainId: relayer.getChainIdToUse(),
 	  replayProtection: zeroAddress, 
 	  nonce: ethers.utils.defaultAbiCoder.encode(['uint256'], [nonce]),
@@ -153,6 +168,7 @@ async function sendMetaTx(calls, {batchId, batchNonce}, {tokenContractName, expi
 			MetaTransaction:[
 				{name: 'from', type: 'address'},
 				{name: 'to', type: 'address'},
+				{name: 'value', type: 'uint256'},
 				{name: 'chainId', type: 'uint256'},
 				{name: 'replayProtection', type: 'address'},
 				{name: 'nonce', type: 'bytes'},
@@ -199,15 +215,15 @@ async function sendMetaTx(calls, {batchId, batchNonce}, {tokenContractName, expi
 	}
 	// await pause(0.4);
 	if (wrapper_message.relayer.toLowerCase() != '0x0000000000000000000000000000000000000000' && wrapper_message.relayer.toLowerCase() != $relayer.address.toLowerCase()) {
-		$metatx = {status: 'error', wrapper_message: 'Relayer will not execute it as the message is destined to another relayer'};
+		$metatx = {status: 'error', message: 'Relayer will not execute it as the message is destined to another relayer'};
 		return false;
 	} 
 
 	if(wrapper_message.expiry <  Date.now() /1000 ) {
-		$metatx = {status: 'error', wrapper_message: 'Relayer will not execute it as the expiry time is in the past'};
+		$metatx = {status: 'error', message: 'Relayer will not execute it as the expiry time is in the past'};
 		return false;
 	}else if(wrapper_message.expiry <  Date.now() / 1000 - 60) {
-		$metatx = {status: 'error', wrapper_message: 'Relayer will not execute it as the expiry time is too short'};
+		$metatx = {status: 'error', message: 'Relayer will not execute it as the expiry time is too short'};
 		return false;
 	}
 
@@ -227,7 +243,7 @@ async function sendMetaTx(calls, {batchId, batchNonce}, {tokenContractName, expi
 			response,
 			wrapper_message,
 			relayerWallet.address,
-			{gasLimit: BigNumber.from('2000000'), chainId: relayer.getChainIdToUse()}
+			{gasLimit: BigNumber.from('2000000'), chainId: relayer.getChainIdToUse(), value: BigNumber.from(value)}
 		);
 	} catch(e) {
 		// TODO error
@@ -330,6 +346,7 @@ async function sendMetaTx(calls, {batchId, batchNonce}, {tokenContractName, expi
 					<SettingsOption label="txGas" type="number" bind:value={purchase_txGas}/>
 					<SettingsOption label="batchId" type="number" bind:value={purchase_batchId}/>
 					<SettingsOption label="nonce" type="number" bind:value={purchase_nonce}/>
+					<SettingsOption label="value" type="datetime" bind:value={purchase_value}/>
 					<SettingsOption label="tokenGasPrice" type="number" bind:value={purchase_tokenGasPrice}/>
 					<SettingsOption label="relayer" type="string" bind:value={purchase_relayer}/>
 				</div>
@@ -390,6 +407,7 @@ async function sendMetaTx(calls, {batchId, batchNonce}, {tokenContractName, expi
 					<SettingsOption label="txGas" type="number" bind:value={transfer_txGas}/>
 					<SettingsOption label="batchId" type="number" bind:value={transfer_batchId}/>
 					<SettingsOption label="nonce" type="number" bind:value={transfer_nonce}/>
+					<SettingsOption label="value" type="datetime" bind:value={transfer_value}/>
 					<SettingsOption label="tokenGasPrice" type="number" bind:value={transfer_tokenGasPrice}/>
 					<SettingsOption label="relayer" type="string" bind:value={transfer_relayer}/>
 				</div>

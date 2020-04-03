@@ -57,7 +57,6 @@ export function get(req, res, next) {
 	const json = article;
 
 	if (json) {
-        console.log('json found');
 		res.writeHead(200, {
 			'Content-Type': 'application/json'
 		});

@@ -1,26 +1,175 @@
 # EIP-2585 Minimal Meta Transaction Forwarder + EIP-1776 Add-On Demo
 
-The demo is located here: [https://metatx.eth.link](https://metatx.eth.link)
+The demo is located here: [https://metatx.eth.link](https://metatx.eth.link). It was originally made for the [Metamask](https://metamask.io) / [Gitcoin](https://gitcoin.co/) ["Take Back The Web Hackathon"](https://gitcoin.co/issue/MetaMask/Hackathons/2/3865) for which it win the competition.
 
-It implements EIP-1776 (slightly modified, going to update the EIP soon) on top of a minimal forwarder.
+It now has been expanded after further discussion with some of the other participants. In particular it expands on the idea proposed by +++ to implement a minimal meta transaction forward and flexible replay protection (see +++).
 
-## EIP-1585 The Minimal Forwarder
+The demo itself show that such system is possible and compatible with more complex solution built on top:
+
+That demo implements EIP-1776 (slightly modified, going to update the EIP soon) on top of it
+
+## EIP-2585 The Minimal Forwarder
 
 This minimal forwarder is described in EIP-2585
 
-It implement a barebone though powerful base layer to implement more complex relaying mechanism on top(like EIP-1776). Contract that want to receive meta transaction just need to check that msg.sender == address(forwarder). More complex relaying mechanism can be implemented without requiring change in meta transaction receiver. The demo showcase it with EIP-1776 but system like [GSN](+++) can be implemented too.
+```
+contract Forwarder is ReplayProtection {
+
+    // ///////////////////////////// FORWARDING EOA META TRANSACTION ///////////////////////////////////
+
+    bytes4 internal constant ERC1271_MAGICVALUE = 0x20c13b0b;
+    bytes4 internal constant ERC1654_MAGICVALUE = 0x1626ba7e;
+
+    enum SignatureType { DIRECT, EIP1654, EIP1271 }
+
+    struct Message {
+        address from;
+        address to;
+        uint256 chainId;
+        address replayProtection;
+        bytes nonce;
+        bytes data;
+        bytes32 extraDataHash;
+	}
+
+    /// @notice forward call from EOA signed message
+    /// @param message.from address from which the message come from (For EOA this is the same as signer)
+    /// @param message.to target of the call
+    /// @param message.replayProtection contract address that check and update nonce
+    /// @param message.nonce nonce value
+    /// @param message.data call data
+    /// @param message.extraDataHash extra data hashed that can be used as embedded message for implementing more complex scenario, with one sig
+    /// @param signatureType signatureType either EOA, EIP1271 or EIP1654
+    /// @param signature signature
+    function forward(
+        Message memory message,
+        SignatureType signatureType,
+        bytes memory signature
+    ) public payable { // external with ABIEncoderV2 Struct is not supported in solidity < 0.6.4
+        require(_isValidChainId(message.chainId), "INVALID_CHAIN_ID");
+        _checkSigner(message, signatureType, signature);
+        // optimization to avoid call if using default nonce strategy
+        // this contract implements a default nonce strategy and can be called directly
+        if (message.replayProtection == address(0) || message.replayProtection == address(this)) {
+            require(checkAndUpdateNonce(message.from, message.nonce), "NONCE_INVALID");
+        } else {
+            require(ReplayProtection(message.replayProtection).checkAndUpdateNonce(message.from, message.nonce), "NONCE_INVALID");
+        }
+
+        _call(message.from, message.to, msg.value, message.data);
+    }
+
+
+    // /////////////////////////////////// BATCH CALL /////////////////////////////////////
+
+    struct Call {
+        address to;
+        bytes data;
+        uint256 value;
+    }
+
+    /// @notice batcher function that can be called as part of a meta transaction (allowing to batch call atomically)
+    /// @param calls list of call data and destination
+    function batch(Call[] memory calls) public payable { // external with ABIEncoderV2 Struct is not supported in solidity < 0.6.4
+        require(msg.sender == address(this), "FORWARDER_ONLY");
+        address signer;
+        bytes memory data = msg.data;
+        uint256 length = msg.data.length;
+        assembly { signer := and(mload(sub(add(data, length), 0x00)), 0xffffffffffffffffffffffffffffffffffffffff) }
+        for(uint256 i = 0; i < calls.length; i++) {
+            _call(signer, calls[i].to, calls[i].value, calls[i].data);
+        }
+    }
+
+    // /////////////////////////////////// REPLAY PROTECTION /////////////////////////////////////
+
+    mapping(address => mapping(uint128 => uint128)) _batches;
+
+    /// @notice implement a default nonce stategy
+    /// @param signer address to check and update nonce for
+    /// @param nonce value of nonce sent as part of the forward call
+    function checkAndUpdateNonce(address signer, bytes memory nonce) public override returns (bool) {
+        // TODO? default nonce strategy could be different (maybe the most versatile : batchId + Nonce)
+        uint256 value = abi.decode(nonce, (uint256));
+        uint128 batchId = uint128(value / 2**128);
+        uint128 batchNonce = uint128(value % 2**128);
+
+        uint128 currentNonce = _batches[signer][batchId];
+        if (batchNonce == currentNonce) {
+            _batches[signer][batchId] = currentNonce + 1;
+            return true;
+        }
+        return false;
+    }
+
+    function getNonce(address signer, uint128 batchId) external view returns (uint128) {
+        return _batches[signer][batchId];
+    }
+
+
+    // ///////////////////////////////// INTERNAL ////////////////////////////////////////////
+
+    function _call(
+        address from,
+        address to,
+        uint256 value,
+        bytes memory data
+    ) internal {
+        (bool success,) = to.call.value(value)(abi.encodePacked(data, from));
+        if (!success) {
+            assembly {
+                let returnDataSize := returndatasize()
+                returndatacopy(0, 0, returnDataSize)
+                revert(0, returnDataSize)
+            }
+        }
+    }
+
+    function _checkSigner(
+        Message memory message,
+        SignatureType signatureType,
+        bytes memory signature
+    ) internal view returns (address) {
+        bytes memory dataToHash = _encodeMessage(message);
+        if (signatureType == SignatureType.EIP1271) {
+            require(ERC1271(message.from).isValidSignature(dataToHash, signature) == ERC1271_MAGICVALUE, "SIGNATURE_1271_INVALID");
+        } else if(signatureType == SignatureType.EIP1654){
+            require(ERC1654(message.from).isValidSignature(keccak256(dataToHash), signature) == ERC1654_MAGICVALUE, "SIGNATURE_1654_INVALID");
+        } else {
+            address signer = SigUtil.recover(keccak256(dataToHash), signature);
+            require(signer == message.from, "SIGNATURE_WRONG_SIGNER");
+        }
+    }
+
+    function _isValidChainId(uint256 chainId) internal view returns (bool) {
+        uint256 _chainId;
+        assembly {_chainId := chainid() }
+        return chainId == _chainId;
+    }
+
+    function _encodeMessage(Message memory message) internal virtual view returns (bytes memory) {
+        return SigUtil.eth_sign_prefix(
+            keccak256(
+                abi.encodePacked(message.from, message.to, msg.value, message.chainId, message.replayProtection, message.nonce, message.data, message.extraDataHash)
+            )
+        );
+    }
+}
+```
+
+It implement a barebone though powerful base layer to implement more complex relaying mechanism on top(like EIP-1776). Contract that want to receive meta transaction just need to check that msg.sender == address(forwarder) and extract the address from the 20 bytes appended to call data. More complex relaying mechanism can be implemented without requiring change in meta transaction receiver. The demo showcase it with EIP-1776 but system like [GSN](+++) can be implemented too.
 
 
 In particular the minimal forward does not implement relayer repayment mechanism but can support it at a higher level. It simply ensure valid signer and replay protection.
 
 Here are the current features :
 
-| Feature | In Demo | Pros | Cons | Notes |
+| Feature | Done | Pros | Cons | Notes |
 | :---  | :---: |  :--- | :--- | ---: |
 | EIP-1271 / EIP-1654                  | &#x2714; | - allow account contract to use same mechanism and benefit for anything built on top | - add from in signed message and data | 
 |                                      |          |  | - add signatureType |
 | |
-| msg.value                            |          | - allow meta tx to send ETH | - add value in signed message (not in data) | Meta tx processor built on top can ensure relayer is rewarded for it (via token exchange for example) |
+| msg.value                            | &#x2714; | - allow meta tx to send ETH | - add value in signed message (not in data) | Meta tx processor built on top can ensure relayer is rewarded for it (via token exchange for example) |
 | |
 | flexible replay protection           | &#x2714; | - can have more flexible or cheaper (in gas) replay protection | - add replayProtection contract address in signed message and data |
 |                                      | | | - make nonce a `bytes` |
@@ -34,6 +183,8 @@ Here are the current features :
 | |
 | EIP-712                              | &#x2714; | - show a default message display for wallet that do not support the forwarder standard but support EIP-712 | - add overhead (compleixity and operations) | Meta tx processor built on top will not be able to shows their parameter via default EIP-712 support (uses extraDataHash) |
 | |
+| Basic Signature                      | &#x2714; | - simpler | - does not have nice default display | Meta tx processor built on top will not be able to display their info neither (uses extraDataHash) |
+| |
 | batch capability                     | &#x2714; | - allow to support batch transaction like `approve` and `call` allowing to support seamless ERC20 payment | - add a function batch |
 
 
@@ -42,7 +193,7 @@ Here are the current features :
 
 EIP-1776 is a full solution for meta-tx including relayer repayment that provides safety guarantees for both relayers and signers
 
-It now use EIP-1585 Forwarder for signature verification by using the extraDataHash parameter allowing the EIP-712 message format to be embedded in the EIP-2585 message format.
+It now use EIP-2585 Forwarder for signature verification by using the extraDataHash parameter allowing the EIP-712 message format to be embedded in the EIP-2585 message format.
 
 Every recipient contract supporting EIP-2585 (which only use the basic `_getTxSigner()` mechanism though 20bytes appended to the call) can receive EIP-1776 Meta Transaction
 

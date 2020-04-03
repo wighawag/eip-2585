@@ -7,7 +7,7 @@ contract ForwarderReceiver is ForwarderReceiverBase {
     constructor(address forwarder) public ForwarderReceiverBase(forwarder) {}
 
     event Test(address from, string name);
-    function doSomething(address from, string calldata name) external {
+    function doSomething(address from, string calldata name) external payable {
         require(_getTxSigner() == from, "NOT_AUTHORIZED");
         emit Test(from, name);
     }
