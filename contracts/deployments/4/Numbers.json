@@ -1,14 +1,14 @@
 {
-  "transactionHash": "0x4b9043d5762e537292923c62a7cf7a119b551182808aa7efaabaffbb3193bdc3",
+  "transactionHash": "0x5c102bac69d081ad0144e1e6c4687444ea17534a392fd082e70203f8d6bc1416",
   "args": [
-    "0x39EC93D8f7e9E8127a6d05625557B5A3a50BFA65"
+    "0xCfD1B763f811E596e75B6EF911A693409d6d53F4"
   ],
   "abi": [
     {
       "inputs": [
         {
           "internalType": "address",
-          "name": "metaTxProcessor",
+          "name": "forwarder",
           "type": "address"
         }
       ],
@@ -147,29 +147,6 @@
         }
       ],
       "name": "approve",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "sender",
-          "type": "address"
-        },
-        {
-          "internalType": "address",
-          "name": "operator",
-          "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "id",
-          "type": "uint256"
-        }
-      ],
-      "name": "approveFor",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -340,29 +317,6 @@
     {
       "inputs": [
         {
-          "internalType": "address",
-          "name": "sender",
-          "type": "address"
-        },
-        {
-          "internalType": "address",
-          "name": "operator",
-          "type": "address"
-        },
-        {
-          "internalType": "bool",
-          "name": "approved",
-          "type": "bool"
-        }
-      ],
-      "name": "setApprovalForAllFor",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
           "internalType": "bytes4",
           "name": "id",
           "type": "bytes4"
@@ -459,5 +413,5 @@
       "type": "function"
     }
   ],
-  "address": "0xe01a916B60fB2Dfe0128a901BAd759aEfb02Eaa7"
+  "address": "0xDACC3683703328ac0546A58f0CF1940711b8D175"
 }
