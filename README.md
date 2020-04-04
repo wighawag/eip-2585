@@ -2,7 +2,7 @@
 
 The demo is located here: [https://metatx.eth.link](https://metatx.eth.link). It was originally made for the [Metamask](https://metamask.io) / [Gitcoin](https://gitcoin.co/) ["Take Back The Web Hackathon"](https://gitcoin.co/issue/MetaMask/Hackathons/2/3865) for which it win the competition.
 
-It now has been expanded after further discussion with some of the other participants. In particular it expands on the idea proposed by Patrick McCorry to implement a minimal meta transaction forward and flexible replay protection (see [tweet](https://twitter.com/paddypisa/status/1245007740927381505)).
+It now has been expanded after further discussion with some of the other participants. In particular it expands on the idea proposed by Patrick McCorry to implement a minimal meta transaction forwarder with flexible replay protection (see [tweet](https://twitter.com/paddypisa/status/1245007740927381505)).
 
 The demo itself show that such system is possible and compatible with more complex solution built on top:
 
@@ -10,9 +10,9 @@ That demo implements EIP-1776 (slightly modified, going to update the EIP soon) 
 
 ## EIP-2585 The Minimal Forwarder
 
-This minimal forwarder is described in EIP-2585
+This minimal forwarder is described in [EIP-2585](https://github.com/wighawag/EIPs +++)
 
-It implement a barebone though powerful base layer to implement more complex relaying mechanism on top(like EIP-1776). Contract that want to receive meta transaction just need to check that msg.sender == address(forwarder) and extract the address from the 20 bytes appended to call data. More complex relaying mechanism can be implemented without requiring change in meta transaction receiver. The demo showcase it with EIP-1776 but system like [GSN](+++) can be implemented too.
+It implement a barebone though powerful base layer to implement more complex relaying mechanism on top. Contract that want to receive meta transaction just need to check that `msg.sender == address(forwarder)` and extract the address from the 20 bytes appended to call data. More complex relaying mechanism can be implemented without requiring change in meta transaction receiver. The demo showcase it with [EIP-1776](https://github.com/ethereum/EIPs/issues/1776) but system like [GSN](https://gsn.openzeppelin.com) can be implemented too.
 
 
 In particular the minimal forward does not implement relayer repayment mechanism but can support it at a higher level. It simply ensure valid signer and replay protection.
@@ -48,7 +48,7 @@ Here are the current features :
 
 EIP-1776 is a full solution for meta-tx including relayer repayment that provides safety guarantees for both relayers and signers
 
-It now use EIP-2585 Forwarder for signature verification by using the innerMessageHash parameter allowing the EIP-712 message format to be embedded in the EIP-2585 message format.
+It now use EIP-2585 Forwarder for signature verification by using the `innerMessageHash` parameter allowing the EIP-712 message format to be embedded in the EIP-2585 message.
 
 Every recipient contract supporting EIP-2585 (which only use the basic `_getTxSigner()` mechanism though 20bytes appended to the call) can receive EIP-1776 Meta Transaction
 
@@ -59,7 +59,7 @@ Use can now transact with ERC-20 by doing an approve and call this way
 
 EIP-1776 distinctive features are as follow :
 
-*   Recipient do not need to be midified. They just need to support EIP-2585.
+*   Recipient do not need to be modified. They just need to support EIP-2585.
 *   Supports Relayer refund in any ERC-20 tokens
 *   By using EIP-2585 batch feature token transfer can be perform with a simultaneous approval. This means you will not need any pre-approval step anymore, for ERC20 contract that support EIP-2585;
 *   Allow you to specify an expiry time (combined with [EIP-1681](https://eips.ethereum.org/EIPS/eip-1681), this allow relayer and user to ensure they get their tx in or not after a certain time, no more guessing)
@@ -79,7 +79,7 @@ There are roughly 4 type of implementation
 *   **Account-contract Based** (a la Gnosis Safe, etc…) where recipient do not need any modification but that require user to get a deployed account contract.
 *   **Singleton Proxy** where the recipient simply need to check for the singleton address and where all the logic of meta transaction is implemented in the singleton. It can support charging with tokens and even provide token payments
 *   **Token Proxy** where the recipient simply need to check for the token address and where all the logic of meta transaction is implemented in the token. This is the approach originally taken by @austingriffith in “Native Meta Transaction”. It is usually limited to be used for meta-tx to be paid in the specific token. Relayer would then need to trust each token for repayment.
-*   **No Proxy** where the recipient is the meta-tx processor and where all the logic get implemented. While it can support relayer repayment, relayer would have to somehow trust each recipient implementation.
+*   **No Proxy** where the recipient is the meta-tx processor itself and where all the logic get implemented. While it can support relayer repayment, relayer would have to somehow trust each recipient implementation.
 
 Since [EIP-1776](https://github.com/ethereum/EIPs/issues/1776) use EIP-2585, EIP-1776 follows the SIngleton proxy. This is good for the following reason :
 
@@ -97,19 +97,17 @@ In that regard one thing that becomes important as soon as a relayer get paid, i
 
 Another important EIP that would help here is [EIP-1930](https://eips.ethereum.org/EIPS/eip-1930) as the EVM call have poor support for passing an exact amount of gas to a call.
 
-It is also worth noting the importance of the `baseGas` parameter here too, as this make our implementation independent of opcode pricing while ensuring the relayer can account for the extra gas required to execute the meta transaction processing cost. Other implementation like GSN hardcode values in their contract, which is vulnerable to opcode pricing changes
-
-Note that while it is possible to implement the refund on top of the proposal, as soon as we want the user to pay for the meta-tx (in a token for example), we will have to request yet another signature. We find it would be much convenient to have it implemented here. It is always possible for user to set a tokenGasPrice of zero if they have access to a repayer
+It is also worth noting the importance of the `baseGas` parameter here too, as this make our implementation independent of opcode pricing while ensuring the relayer can account for the extra gas required to execute the meta transaction processing cost.
 
 ### C) Token Transfer / Approval
 
-While an earlier version of EIP-1776 supported token transfer as primitive, the latest does not as the same can be achieved with batch meta transaction that EIP-2585 supports
+While an earlier version of EIP-1776 supported token transfer as primitive, the latest does not as the same can be achieved with batch meta transaction that EIP-2585 supports. See demo.
 
 ### D) MetaTx Signer Verification
 
-Finally, another differentation possible for non-account based meta transaction is how the signer is being picked up by the recipient.
+Another differentiation possible for non-account based meta transaction is how the signer is being picked up by the recipient.
 
-An earlier version of EIP-1776 was using the first paramater as it was easy to support, but the appending of signer data at the end of the call data is more generic
+An earlier version of EIP-1776 was using the first parameter as it was easy to support, but the appending of signer data at the end of the call data is more generic and is what EIP-2585 uses.
 
 ### E) meta tx failure responsibility
 
@@ -123,17 +121,18 @@ While this seems trivial to implement, this is not the case and almost every met
 
 They all seems to believe that the gas parameter passed to the various CALL opcode are a specific gas amount. This is not the case and the gas value only act as a maximum value unfortunately. To my knowledge, we are the first to implement correctly. Unfortunately in order to remain opcode pricing independent we relies on the specific behavior of [EIP-150](https://eips.ethereum.org/EIPS/eip-150) 63/64 rules to do so. The proper way to fix it for all meta transaction implementation would be to get [EIP-1930](https://eips.ethereum.org/EIPS/eip-1930) accepted in the next hard fork.
 
-### F) Nonce support
+### F) Replay Protection Mechanism
 
+As show [here](https://github.com/PISAresearch/metamask-comp), there are different replay protection mechanism with each their pros and cons.
 EIP-2586 is very flexible for that. User can choose different mechanism by simply specifying the contract in charge of replay protection. EIP-1776 inherit it.
 
 ## Batching call in one meta-tx
 
-EIP-1776 relies on EIP-2585 for batching support.
+Since EIP-1776 is based on EIP-2585, it automatically support Meta Transaction Batching.
 
 ## Multi Relayer Coordination
 
-In order to avoid the possibilities of relayers submitting 2 meta-tx with the same nonce, at the expense of the relayer getting tis tx included later, the proposal offer a mechanism to avoid it.
+In order to avoid the possibilities of relayers submitting 2 meta-tx with the same nonce, at the expense of the relayer getting its tx included later, the proposal offer a mechanism to avoid it.
 
 Every meta-tx can include a relayer field. This field has 2 purpose, the obvious one is to limit the message to be used by a specific relayer. the second is to ensure the relayer that if the tx get included it get a reward for inclusion
 
@@ -141,4 +140,4 @@ Relayer can thus reject any meta-tx that do not specify their relayer address so
 
 Of course, if the user got rid of its payment token as part of one of this competing tx, the user remains safe and one of the relayer will not get its refund, so this is not full proof.
 
-Also this is not implemented in the demo.
+Also this is not implemented in the demo nor in the code provided.
