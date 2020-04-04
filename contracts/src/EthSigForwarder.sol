@@ -68,7 +68,6 @@ contract EthSigForwarder is Forwarder, ReplayProtection {
         SignatureType signatureType,
         bytes memory signature
     ) public override payable { // external with ABIEncoderV2 Struct is not supported in solidity < 0.6.4
-        require(_isValidChainId(message.chainId), "INVALID_CHAIN_ID");
         _checkSigner(message, signatureType, signature);
         // optimization to avoid call if using default nonce strategy
         // this contract implements a default nonce strategy and can be called directly
@@ -137,7 +136,7 @@ contract EthSigForwarder is Forwarder, ReplayProtection {
         uint256 value,
         bytes memory data
     ) internal {
-        (bool success,) = to.call.value(value)(abi.encodePacked(data, from));
+        (bool success,) = to.call{value: value}(abi.encodePacked(data, from));
         if (!success) {
             assembly {
                 let returnDataSize := returndatasize()
@@ -163,16 +162,14 @@ contract EthSigForwarder is Forwarder, ReplayProtection {
         }
     }
 
-    function _isValidChainId(uint256 chainId) internal view returns (bool) {
-        uint256 _chainId;
-        assembly {_chainId := chainid() }
-        return chainId == _chainId;
+    function _getChainId() internal view returns (uint256 chainId) {
+        assembly {chainId := chainid() }
     }
 
     function _encodeMessage(Message memory message) internal view returns (bytes memory) {
         return SigUtil.eth_sign_prefix(
             keccak256(
-                abi.encodePacked(message.from, message.to, msg.value, message.chainId, message.replayProtection, message.nonce, message.data, message.innerMessageHash)
+                abi.encodePacked(message.from, message.to, msg.value, _getChainId(), message.replayProtection, message.nonce, message.data, message.innerMessageHash)
             )
         );
     }

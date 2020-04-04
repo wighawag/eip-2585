@@ -8,7 +8,6 @@ interface Forwarder {
     struct Message {
         address from;
         address to;
-        uint256 chainId;
         address replayProtection;
         bytes nonce;
         bytes data;

@@ -23,7 +23,6 @@ interface Forwarder {
     struct Message {
         address from;
         address to;
-        uint256 chainId;
         address replayProtection;
         bytes nonce;
         bytes data;
@@ -87,7 +86,6 @@ contract EIP712Forwarder is Forwarder, ReplayProtection {
         SignatureType signatureType,
         bytes memory signature
     ) public override payable { // external with ABIEncoderV2 Struct is not supported in solidity < 0.6.4
-        require(_isValidChainId(message.chainId), "INVALID_CHAIN_ID");
         _checkSigner(message, signatureType, signature);
         // optimization to avoid call if using default nonce strategy
         // this contract implements a default nonce strategy and can be called directly
@@ -156,7 +154,7 @@ contract EIP712Forwarder is Forwarder, ReplayProtection {
         uint256 value,
         bytes memory data
     ) internal {
-        (bool success,) = to.call.value(value)(abi.encodePacked(data, from));
+        (bool success,) = to.call{value: value}(abi.encodePacked(data, from));
         if (!success) {
             assembly {
                 let returnDataSize := returndatasize()
@@ -182,10 +180,8 @@ contract EIP712Forwarder is Forwarder, ReplayProtection {
         }
     }
 
-    function _isValidChainId(uint256 chainId) internal view returns (bool) {
-        uint256 _chainId;
-        assembly {_chainId := chainid() }
-        return chainId == _chainId;
+    function _getChainId() internal view returns (uint256 chainId) {
+        assembly {chainId := chainid() }
     }
 
     bytes32 constant EIP712DOMAIN_TYPEHASH = keccak256(
@@ -212,7 +208,7 @@ contract EIP712Forwarder is Forwarder, ReplayProtection {
                 message.from,
                 message.to,
                 msg.value,
-                message.chainId,
+                _getChainId(),
                 message.replayProtection,
                 keccak256(message.nonce),
                 keccak256(message.data),
