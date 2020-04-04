@@ -12,10 +12,10 @@ const relayer = others[0];
 
 const metaUserWallet = createWallet();
 
-describe("Forwarder", () => {
+describe("EthSigForwarder", () => {
   beforeEach(async () => {
-    await deployments.run(['Forwarder']);
-    const forwarderContract = deployments.get('Forwarder');
+    await deployments.run(['EthSigForwarder']);
+    const forwarderContract = deployments.get('EthSigForwarder');
     await deployments.deploy("ForwarderReceiver",  {from: deployer, gas: 4000000}, "ForwarderReceiver", forwarderContract.address);
   })
   
@@ -45,7 +45,7 @@ describe("Forwarder", () => {
     );
     
     // send transaction
-    const receipt = await sendTxAndWait({from: relayer}, 'Forwarder', 'forward', // abiEvents option to merge events abi for parsing receipt
+    const receipt = await sendTxAndWait({from: relayer}, 'EthSigForwarder', 'forward', // abiEvents option to merge events abi for parsing receipt
       message,
       0,
       signature

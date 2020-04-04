@@ -1,6 +1,8 @@
 pragma solidity 0.6.4;
 pragma experimental ABIEncoderV2;
 
+import "./Forwarder.sol";
+
 interface ERC1271 {
     function isValidSignature(bytes calldata data, bytes calldata signature) external view returns (bytes4 magicValue);
 }
@@ -14,27 +16,6 @@ interface ReplayProtection {
     function checkAndUpdateNonce(address signer, bytes calldata nonce) external returns (bool);
 
     // function to get nonce is not part of the standard as this might different depending of which strategy is used (multi dimensional nonce vs simple nonce for example)
-}
-
-interface Forwarder {
-
-    enum SignatureType { DIRECT, EIP1654, EIP1271 }
-
-    struct Message {
-        address from;
-        address to;
-        uint256 chainId;
-        address replayProtection;
-        bytes nonce;
-        bytes data;
-        bytes32 innerMessageHash;
-	}
-
-    function forward(
-        Message calldata message,
-        SignatureType signatureType,
-        bytes calldata signature
-    ) external payable;
 }
 
 library SigUtil {
@@ -65,8 +46,8 @@ library SigUtil {
     }
 }
 
-/// @notice Forwarder for Meta Transactions Using EIP712 Signing Standard, also implement default Replay Protection using 2 dimensional nonces
-contract EIP712Forwarder is Forwarder, ReplayProtection {
+/// @notice Forwarder for Meta Transactions using eth_sign, alsot implement default Replay Protection using 2 dimensional nonces
+contract EthSigForwarder is Forwarder, ReplayProtection {
 
     // ///////////////////////////// FORWARDING EOA META TRANSACTION ///////////////////////////////////
 
@@ -188,36 +169,11 @@ contract EIP712Forwarder is Forwarder, ReplayProtection {
         return chainId == _chainId;
     }
 
-    bytes32 constant EIP712DOMAIN_TYPEHASH = keccak256(
-        "EIP712Domain(string name,string version)"
-    );
-    bytes32 constant DOMAIN_SEPARATOR = keccak256(
-        abi.encode(
-            EIP712DOMAIN_TYPEHASH,
-            keccak256("Forwarder"),
-            keccak256("1")
-        )
-    );
-
-    bytes32 constant METATRANSACTION_TYPEHASH = keccak256(
-        "MetaTransaction(address from,address to,uint256 value,uint256 chainId,address replayProtection,bytes nonce,bytes data,bytes32 innerMessageHash)"
-    );
-
     function _encodeMessage(Message memory message) internal view returns (bytes memory) {
-        return abi.encodePacked(
-            "\x19\x01",
-            DOMAIN_SEPARATOR,
-            keccak256(abi.encode(
-                METATRANSACTION_TYPEHASH,
-                message.from,
-                message.to,
-                msg.value,
-                message.chainId,
-                message.replayProtection,
-                keccak256(message.nonce),
-                keccak256(message.data),
-                message.innerMessageHash
-            ))
+        return SigUtil.eth_sign_prefix(
+            keccak256(
+                abi.encodePacked(message.from, message.to, msg.value, message.chainId, message.replayProtection, message.nonce, message.data, message.innerMessageHash)
+            )
         );
     }
 }

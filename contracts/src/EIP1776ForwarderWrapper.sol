@@ -1,7 +1,7 @@
 pragma solidity 0.6.4;
 pragma experimental ABIEncoderV2;
 
-import "./EIP712Forwarder.sol";
+import "./Forwarder.sol";
 import "./Libraries/BytesUtil.sol";
 import "./Libraries/AddressUtils.sol";
 import "./Libraries/SafeMath.sol";
