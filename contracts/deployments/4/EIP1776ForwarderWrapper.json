@@ -1,7 +1,7 @@
 {
-  "transactionHash": "0x473b73325083e246f16bec35b82bff0cb6c452b18abaf58c60543e506c88d01f",
+  "transactionHash": "0xeb7c6a6997bfbfee790671ebf5c706cf127767af540d79def08a22196e2829cd",
   "args": [
-    "0xCfD1B763f811E596e75B6EF911A693409d6d53F4"
+    "0xAcFAF90Ea7c33b9c6B273E518878acA75f756dd9"
   ],
   "abi": [
     {
@@ -76,7 +76,7 @@
             },
             {
               "internalType": "bytes32",
-              "name": "extraDataHash",
+              "name": "innerMessageHash",
               "type": "bytes32"
             }
           ],
@@ -154,5 +154,5 @@
       "type": "function"
     }
   ],
-  "address": "0xDF03a0033D5841D7c3d4B94EcF0a726A1d69aCF1"
+  "address": "0xA19491b9724Fa6082232e4EA05bD186eCaE0Cc24"
 }

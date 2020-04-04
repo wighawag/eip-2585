@@ -10,7 +10,7 @@ That demo implements EIP-1776 (slightly modified, going to update the EIP soon) 
 
 ## EIP-2585 The Minimal Forwarder
 
-This minimal forwarder is described in [EIP-2585](https://github.com/wighawag/EIPs +++)
+This minimal forwarder is described in [EIP-2585](https://github.com/wighawag/EIPs/blob/eip-2585/EIPS/eip-2585.md)
 
 It implement a barebone though powerful base layer to implement more complex relaying mechanism on top. Contract that want to receive meta transaction just need to check that `msg.sender == address(forwarder)` and extract the address from the 20 bytes appended to call data. More complex relaying mechanism can be implemented without requiring change in meta transaction receiver. The demo showcase it with [EIP-1776](https://github.com/ethereum/EIPs/issues/1776) but system like [GSN](https://gsn.openzeppelin.com) can be implemented too.
 

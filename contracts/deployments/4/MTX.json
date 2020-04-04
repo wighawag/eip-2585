@@ -1,9 +1,9 @@
 {
-  "transactionHash": "0x2b5bc75b836b05c27c55e59b143bf7818312bc83c9bf9a93a1765a414f438ece",
+  "transactionHash": "0x5375e4e42e0848f062df37d25599de2859844099348be5871bd213f086b73192",
   "args": [
     "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-    "0xCfD1B763f811E596e75B6EF911A693409d6d53F4",
-    "0xDF03a0033D5841D7c3d4B94EcF0a726A1d69aCF1"
+    "0xAcFAF90Ea7c33b9c6B273E518878acA75f756dd9",
+    "0xA19491b9724Fa6082232e4EA05bD186eCaE0Cc24"
   ],
   "abi": [
     {
@@ -250,5 +250,5 @@
       "type": "function"
     }
   ],
-  "address": "0x0da4E64a7c5B956ceb84cA5A6Af6CaC399EFbF21"
+  "address": "0xcfe012696376E2E850f57Ee0F910618b93435BEd"
 }
