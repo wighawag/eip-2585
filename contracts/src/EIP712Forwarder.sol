@@ -1,3 +1,29 @@
+/* EIP-2585 Minimal Native Meta Transaction Forwarder
+ * This standard defines a universal native meta transaction smart contract
+ * that accept specially crafted Externally Owned Accounts (EOA) signed message
+ * to forward to receiver contract via third parties.
+ *
+ * Written in 2020 by Ronan Sandford
+ *
+ * To the extent possible under law, the author(s) have dedicated all copyright
+ * and related and neighboring rights to this software to the public domain
+ * worldwide. This software is distributed without any warranty.
+ *
+ * You should have received a copy of the CC0 Public Domain Dedication along
+ * with this software. If not, see
+ * <https://creativecommons.org/publicdomain/zero/1.0/>.
+ *    
+ *       .-''-.  .-./`) .-------.               .`````-.  ,--------.     .-''''-.  ,--------.   
+ *     .'_ _   \ \ .-.')\  _(`)_ \             /   ,-.  \ |   _____|    /  _--.  \ |   _____|   
+ *    / ( ` )   '/ `-' \| (_ o._)|            (___/  |   ||  )          |_( )_ ' | |  )         
+ *   . (_ o _)  | `-'`"`|  (_,_) /_ _    _ _        .'  / |  '----.     (_ o _). / |  '----.    
+ *   |  (_,_)___| .---. |   '-.-'( ' )--( ' )   _.-'_.-'  |_.._ _  '.  .'(_,_).  `.|_.._ _  '.  
+ *   '  \   .---. |   | |   |   (_{;}_)(_{;}_)_/_  .'        ( ' )   \|_( )_    \  |  ( ' )   \ 
+ *    \  `-'    / |   | |   |    (_,_)--(_,_)( ' )(__..--. _(_{;}_)  |(_ o _)   /  |_(_{;}_)  | 
+ *     \       /  |   | /   )               (_{;}_)      ||  (_,_)  /  (_,_)..-' .'|  (_,_)  /  
+ *      `'-..-'   '---' `---'                (_,_)-------' `...__..'     `-....-'   `...__..'   
+ *                                                                                           
+ */
 pragma solidity 0.6.4;
 pragma experimental ABIEncoderV2;
 
@@ -10,10 +36,7 @@ interface ERC1654 {
 }
 
 interface ReplayProtection {
-    // TODO? instead of return bool, we could throw on failure
     function checkAndUpdateNonce(address signer, bytes calldata nonce) external returns (bool);
-
-    // function to get nonce is not part of the standard as this might different depending of which strategy is used (multi dimensional nonce vs simple nonce for example)
 }
 
 interface Forwarder {
