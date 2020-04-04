@@ -45,6 +45,7 @@ module.exports = {
 					use: {
 						loader: 'svelte-loader-hot',
 						options: {
+							preprocess,
 							dev, // NOTE dev mode is REQUIRED for HMR
 							hydratable: true,
               				hotReload: hot,
