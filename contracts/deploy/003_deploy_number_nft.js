@@ -3,11 +3,11 @@ module.exports = async ({namedAccounts, deployments}) => {
     const {deployIfDifferent, log} = deployments;
     const {deployer} = namedAccounts;
 
-    let processor = deployments.get('EIP712Forwarder');
-    let contract = deployments.get('Numbers');
+    let processor = await deployments.get('EIP712Forwarder');
+    let contract = await deployments.get('Numbers');
     if (!contract) {
         const deployResult = await deployIfDifferent(['data'], "Numbers",  {from: deployer, gas: 4000000}, "Numbers", processor.address);
-        contract = deployments.get('Numbers');
+        contract = await deployments.get('Numbers');
         if(deployResult.newlyDeployed) {
             log(`Numbers deployed at ${contract.address} for ${deployResult.receipt.gasUsed}`);
         }

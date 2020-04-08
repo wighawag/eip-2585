@@ -1,9 +1,9 @@
 
-module.exports = async ({namedAccounts, deployments}) => {
-    const {sendTxAndWait, chainId} = deployments;
+module.exports = async ({network, namedAccounts, deployments}) => {
+    const {sendTxAndWait} = deployments;
     const {deployer, relayer} = namedAccounts;
 
-    if (chainId === '31337') {
+    if (!network.live) {
         console.log('feeding relayer ' + relayer);
         await sendTxAndWait({from: deployer, to: relayer, value: '1000000000000000000'});
     }

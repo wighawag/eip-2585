@@ -45,11 +45,12 @@ import('contractsInfo').then((contractsInfo) => {
         registerContracts: async ($wallet, chainId) => {
             chainId = chainId || $wallet.chainId;
             if (contractsInfo[chainId]) {
-                contractData.contractsInfo = contractsInfo[chainId];
-                for (const key of Object.keys(contractsInfo[chainId])) {
-                    contractsInfo[chainId][key].contractInfo = {abi: contractsInfo[chainId][key].abi}; // TODO svelte-wallet update
+                const chainContracts = contractsInfo[chainId][0].contracts; // TODO deal with multiple network config ?
+                contractData.contractsInfo = chainContracts;
+                for (const key of Object.keys(chainContracts)) { 
+                    chainContracts[key].contractInfo = {abi: chainContracts[key].abi}; // TODO svelte-wallet update
                 }
-                return contractsInfo[chainId];
+                return chainContracts;
             }
             throw new Error('no contract for chainId ' + chainId);
         }

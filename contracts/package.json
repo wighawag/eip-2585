@@ -7,15 +7,15 @@
   "license": "GPL",
   "devDependencies": {
     "@nomiclabs/buidler": "^1.2.0",
-    "buidler-deploy": "^0.0.9",
+    "buidler-deploy": "^0.1.9",
     "eth-sig-util": "^2.5.3"
   },
   "scripts": {
     "test": "buidler test",
-    "dev": "buidler listen --export ../webapp/src/dev_contractsInfo.json",
-    "deploy:local": "buidler --network localhost deploy --export ../webapp/src/dev_contractsInfo.json",
-    "deploy:rinkeby": "buidler deploy --network rinkeby --export ../webapp/src/contractsInfo.json",
-    "deploy:goerli": "buidler deploy --network goerli --export ../webapp/src/contractsInfo.json"
+    "dev": "buidler listen --export-all ../webapp/src/dev_contractsInfo.json",
+    "deploy:local": "buidler --network localhost deploy --export-all ../webapp/src/dev_contractsInfo.json",
+    "deploy:rinkeby": "buidler deploy --network rinkeby --export-all ../webapp/src/contractsInfo.json",
+    "deploy:goerli": "buidler deploy --network goerli --export-all ../webapp/src/contractsInfo.json"
   },
   "dependencies": {
     "ethers": "^5.0.0-beta.179"
