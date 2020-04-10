@@ -4,6 +4,7 @@ const ethSigUtil = require('eth-sig-util');
 
 module.exports = {
   async signMessage(wallet, types, namesOrValues, message) {
+    // console.log(types, namesOrValues, message);
     let values = [];
     if (message) {
         for(const name of namesOrValues) {

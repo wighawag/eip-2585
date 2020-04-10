@@ -1,9 +1,9 @@
 
-module.exports = async ({namedAccounts, deployments}) => {
+module.exports = async ({getNamedAccounts, deployments}) => {
     const {deployIfDifferent, log} = deployments;
-    const {deployer} = namedAccounts;
+    const {deployer} = await getNamedAccounts();
 
-    let contract = await deployments.get('EIP712Forwarder');
+    let contract = await await deployments.get('EIP712Forwarder');
     if (!contract) {
         
         let deployResult;
@@ -13,7 +13,7 @@ module.exports = async ({namedAccounts, deployments}) => {
             console.error('cannot deploy', e);
             throw e;
         }
-        contract = await deployments.get('EIP712Forwarder');
+        contract = await await deployments.get('EIP712Forwarder');
         if(deployResult.newlyDeployed) {
             log(`EIP712Forwarder deployed at ${contract.address} for ${deployResult.receipt.gasUsed}`);
         }

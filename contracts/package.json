@@ -7,7 +7,7 @@
   "license": "GPL",
   "devDependencies": {
     "@nomiclabs/buidler": "^1.2.0",
-    "buidler-deploy": "^0.1.9",
+    "buidler-deploy": "^0.1.16",
     "eth-sig-util": "^2.5.3"
   },
   "scripts": {

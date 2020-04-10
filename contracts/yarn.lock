@@ -726,16 +726,17 @@ buffer@^5.2.1:
     base64-js "^1.0.2"
     ieee754 "^1.1.4"
 
-buidler-deploy@^0.1.9:
-  version "0.1.9"
-  resolved "https://registry.yarnpkg.com/buidler-deploy/-/buidler-deploy-0.1.9.tgz#89d0434186b681cdd3afc50e87788161167bb6a3"
-  integrity sha512-pJc5fziltQ+2Rcq1oTZ0Ucea19YnKzgVtSlwStxFEbJgC+mkgvxSDIfE2PzQcphdjXEFX7U1ol8IWc7FjPN5+g==
+buidler-deploy@^0.1.16:
+  version "0.1.16"
+  resolved "https://registry.yarnpkg.com/buidler-deploy/-/buidler-deploy-0.1.16.tgz#2de6572f19df88c770ebeae98dcd119e0837538b"
+  integrity sha512-A2sK7FmCnGRB+qZ+4EW6A8kxqq6jyXvef6hX7/NyR/XyNavJw4gbSmfmEiAiknxhFGl3zuCqqcno7mcP46Cg4A==
   dependencies:
     "@ethersproject/bignumber" "^5.0.0-beta.136"
     "@ethersproject/contracts" "^5.0.0-beta.145"
     "@ethersproject/logger" "^5.0.0-beta.136"
     "@ethersproject/providers" "^5.0.0-beta.156"
     chalk "^4.0.0"
+    debug "^4.1.1"
 
 bytes@3.1.0:
   version "3.1.0"

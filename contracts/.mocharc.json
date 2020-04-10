@@ -1,0 +1,15 @@
+{
+  "bail": true,
+  "require": ["@nomiclabs/buidler/register"],
+  "diff": true,
+  "extension": ["js"],
+  "package": "./package.json",
+  "reporter": "spec",
+  "slow": 75,
+  "timeout": 20000,
+  "ui": "bdd",
+  "watch": false,
+  "watch-files": ["test/**/*.js"],
+  "spec": "test/**/test*.js",
+  "recursive": true
+}

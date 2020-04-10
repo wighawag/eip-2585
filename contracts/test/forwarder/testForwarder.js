@@ -1,26 +1,36 @@
 const assert = require('assert');
-const { deployments, namedAccounts } = require('@nomiclabs/buidler');
+// const {BigNumber} = require('@ethersproject/bignumber');
+const { deployments, getNamedAccounts } = require('@nomiclabs/buidler');
 const {expectRevert, zeroAddress, extractRevertMessageFromHexString} = require('../../utils/testHelpers');
 
 const {createWallet, instantiateContract} = require('../../utils');
 const {signMessage, createEIP712Signer, abiEncode, abiDecode} = require('../../utils/signing');
 
-const {sendTxAndWait, chainId} = deployments;
-const {deployer, others} = namedAccounts;
-
-const relayer = others[0];
+const {sendTxAndWait, getChainId} = deployments;
 
 const metaUserWallet = createWallet();
+
+let chainId;
+let deployer;
+let relayer;
+let others;
+before(async () => {
+  chainId = await getChainId();
+  const namedAccounts = await getNamedAccounts();
+  deployer = namedAccounts.deployer;
+  others = namedAccounts.others;
+  relayer = others[0];
+});
 
 describe("EthSigForwarder", () => {
   beforeEach(async () => {
     await deployments.run(['EthSigForwarder']);
-    const forwarderContract = deployments.get('EthSigForwarder');
+    const forwarderContract = await deployments.get('EthSigForwarder');
     await deployments.deploy("ForwarderReceiver",  {from: deployer, gas: 4000000}, "ForwarderReceiver", forwarderContract.address);
   })
   
   it("test forwarding call ", async function() {
-    const receiver = deployments.get('ForwarderReceiver');
+    const receiver = await deployments.get('ForwarderReceiver');
     const receiverContract = instantiateContract(receiver);
     
     // construct message
@@ -58,12 +68,12 @@ describe("EthSigForwarder", () => {
 describe("EIP712Forwarder", () => {
   beforeEach(async () => {
     await deployments.run(['EIP712Forwarder']);
-    const forwarderContract = deployments.get('EIP712Forwarder');
+    const forwarderContract = await deployments.get('EIP712Forwarder');
     await deployments.deploy("ForwarderReceiver",  {from: deployer, gas: 4000000}, "ForwarderReceiver", forwarderContract.address);
   })
   
   it("test forwarding call ", async function() {
-    const receiver = deployments.get('ForwarderReceiver');
+    const receiver = await deployments.get('ForwarderReceiver');
     const receiverContract = instantiateContract(receiver);
     
     // construct message
@@ -121,10 +131,10 @@ describe("EIP1776ForwarderWrapper", () => {
   let wrapper_eip712Signer;
   beforeEach(async () => {
     await deployments.run(['EIP1776ForwarderWrapper', 'DAI']);
-    const forwarderContract = deployments.get('EIP712Forwarder');
+    const forwarderContract = await deployments.get('EIP712Forwarder');
     await deployments.deploy("ForwarderReceiver",  {from: deployer, gas: 4000000}, "ForwarderReceiver", forwarderContract.address);
 
-    const EIP1776ForwarderWrapper = deployments.get('EIP1776ForwarderWrapper');
+    const EIP1776ForwarderWrapper = await deployments.get('EIP1776ForwarderWrapper');
     wrapper_eip712Signer = createEIP712Signer({
       types : {
         EIP712Domain: [
@@ -151,7 +161,7 @@ describe("EIP1776ForwarderWrapper", () => {
   })
   
   it("test forwarding call ", async function() {
-    const receiver = deployments.get('ForwarderReceiver');
+    const receiver = await deployments.get('ForwarderReceiver');
     const receiverContract = instantiateContract(receiver);
 
     
@@ -224,7 +234,7 @@ describe("EIP1776ForwarderWrapper", () => {
   });
 
   it("test batch call ", async function() {
-    const receiver = deployments.get('ForwarderReceiver');
+    const receiver = await deployments.get('ForwarderReceiver');
     const receiverContract = instantiateContract(receiver);
 
     const wrapper_params = {
@@ -239,12 +249,12 @@ describe("EIP1776ForwarderWrapper", () => {
     // MAKE IT FAIL : wrapper_params.amount = 1;
     
     // construct batch message
-    const token = instantiateContract(deployments.get('DAI'));
+    const token = instantiateContract(await deployments.get('DAI'));
     const approvalCall = await token.populateTransaction.approve(receiverContract.address, '10000000000000000000');
     approvalCall.value = 0;
     const doSomethingCall = await receiverContract.populateTransaction.doSomething(metaUserWallet.address, 'hello');
     doSomethingCall.value = 1;
-    const forwarder = instantiateContract(deployments.get('EIP712Forwarder'));
+    const forwarder = instantiateContract(await deployments.get('EIP712Forwarder'));
     const {data} = await forwarder.populateTransaction.batch([approvalCall, doSomethingCall]);
     const message = {
       from: metaUserWallet.address,

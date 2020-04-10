@@ -1,7 +1,7 @@
 
 module.exports = async ({network, namedAccounts, deployments}) => {
     const {sendTxAndWait} = deployments;
-    const {deployer, relayer} = namedAccounts;
+    const {deployer, relayer} = await getNamedAccounts();
 
     if (!network.live) {
         console.log('feeding relayer ' + relayer);
