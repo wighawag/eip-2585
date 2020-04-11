@@ -2,3 +2,8 @@ cache/
 artifacts/
 node_modules/
 .mnemonic*
+
+### VisualStudioCode ###
+.vscode/*
+!.vscode/*.default
+### ################ ###
