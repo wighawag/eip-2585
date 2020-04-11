@@ -17,6 +17,7 @@ describe('Forwarder' ,() => {
   let relayer;
   let others;
   before(async function() {
+    await deployments.fixture();
     chainId = await getChainId();
     const namedAccounts = await getNamedAccounts();
     deployer = namedAccounts.deployer;
@@ -26,7 +27,7 @@ describe('Forwarder' ,() => {
 
   describe("EthSigForwarder", () => {
     beforeEach(async () => {
-      await deployments.run(['EthSigForwarder']);
+      await deployments.fixture(['EthSigForwarder']);
       const forwarderContract = await deployments.get('EthSigForwarder');
       await deployments.deploy("ForwarderReceiver",  {from: deployer, gas: 4000000}, "ForwarderReceiver", forwarderContract.address);
     })
@@ -69,7 +70,7 @@ describe('Forwarder' ,() => {
     
   describe("EIP712Forwarder", () => {
     beforeEach(async () => {
-      await deployments.run(['EIP712Forwarder']);
+      await deployments.fixture(['EIP712Forwarder']);
       const forwarderContract = await deployments.get('EIP712Forwarder');
       await deployments.deploy("ForwarderReceiver",  {from: deployer, gas: 4000000}, "ForwarderReceiver", forwarderContract.address);
     })
@@ -132,7 +133,7 @@ describe('Forwarder' ,() => {
   describe("EIP1776ForwarderWrapper", () => {
     let wrapper_eip712Signer;
     beforeEach(async () => {
-      await deployments.run(['EIP1776ForwarderWrapper', 'DAI']);
+      await deployments.fixture(['EIP1776ForwarderWrapper', 'DAI']);
       const forwarderContract = await deployments.get('EIP712Forwarder');
       await deployments.deploy("ForwarderReceiver",  {from: deployer, gas: 4000000}, "ForwarderReceiver", forwarderContract.address);
   

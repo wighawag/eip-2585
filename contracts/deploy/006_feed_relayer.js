@@ -1,5 +1,5 @@
 
-module.exports = async ({network, namedAccounts, deployments}) => {
+module.exports = async ({network, getNamedAccounts, deployments}) => {
     const {sendTxAndWait} = deployments;
     const {deployer, relayer} = await getNamedAccounts();
 
