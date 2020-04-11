@@ -1,5 +1,4 @@
-const assert = require('assert');
-// const {BigNumber} = require('@ethersproject/bignumber');
+const {assert} = require('chai-local');
 const { deployments, getNamedAccounts } = require('@nomiclabs/buidler');
 const {expectRevert, zeroAddress, extractRevertMessageFromHexString} = require('../../utils/testHelpers');
 
@@ -17,7 +16,6 @@ describe('Forwarder' ,() => {
   let relayer;
   let others;
   before(async function() {
-    await deployments.fixture();
     chainId = await getChainId();
     const namedAccounts = await getNamedAccounts();
     deployer = namedAccounts.deployer;
@@ -27,7 +25,7 @@ describe('Forwarder' ,() => {
 
   describe("EthSigForwarder", () => {
     beforeEach(async () => {
-      await deployments.fixture(['EthSigForwarder']);
+      await deployments.fixture();
       const forwarderContract = await deployments.get('EthSigForwarder');
       await deployments.deploy("ForwarderReceiver",  {from: deployer, gas: 4000000}, "ForwarderReceiver", forwarderContract.address);
     })
@@ -70,7 +68,7 @@ describe('Forwarder' ,() => {
     
   describe("EIP712Forwarder", () => {
     beforeEach(async () => {
-      await deployments.fixture(['EIP712Forwarder']);
+      await deployments.fixture();
       const forwarderContract = await deployments.get('EIP712Forwarder');
       await deployments.deploy("ForwarderReceiver",  {from: deployer, gas: 4000000}, "ForwarderReceiver", forwarderContract.address);
     })
@@ -133,7 +131,7 @@ describe('Forwarder' ,() => {
   describe("EIP1776ForwarderWrapper", () => {
     let wrapper_eip712Signer;
     beforeEach(async () => {
-      await deployments.fixture(['EIP1776ForwarderWrapper', 'DAI']);
+      await deployments.fixture();
       const forwarderContract = await deployments.get('EIP712Forwarder');
       await deployments.deploy("ForwarderReceiver",  {from: deployer, gas: 4000000}, "ForwarderReceiver", forwarderContract.address);
   
@@ -166,7 +164,6 @@ describe('Forwarder' ,() => {
     it("test forwarding call ", async function() {
       const receiver = await deployments.get('ForwarderReceiver');
       const receiverContract = instantiateContract(receiver);
-  
       
       const wrapper_params = {
         tokenContract: zeroAddress,
