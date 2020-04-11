@@ -1,5 +1,6 @@
 const fs = require('fs');
 usePlugin("buidler-deploy");
+usePlugin("buidler-ethers-v5");
 
 let mnemonic;
 try {
@@ -10,7 +11,10 @@ module.exports = {
   namedAccounts: {
       // TODO per chain
     deployer: 0,
-    relayer: '0x7B7cd3876EC83efa98CbB251C3C0526eb355EA55',
+    relayer: {
+      default: 1,
+      4: '0x7B7cd3876EC83efa98CbB251C3C0526eb355EA55',
+    },
     others: "from:2"
   },
   solc: {
