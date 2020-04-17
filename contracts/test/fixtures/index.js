@@ -1,5 +1,4 @@
-const { ethers, deployments, getNamedAccounts } = require('@nomiclabs/buidler');
-const {getChainId} = deployments;
+const { getChainId, ethers, deployments, getNamedAccounts } = require('@nomiclabs/buidler');
 const {signMessage, createEIP712Signer, abiEncode, abiDecode} = require('../../utils/signing');
 
 module.exports.setupForwarderAndForwarderReceiver = (forwarderContractName, receiverContractName) => {

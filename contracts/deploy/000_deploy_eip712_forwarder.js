@@ -3,7 +3,7 @@ module.exports = async ({getNamedAccounts, deployments}) => {
     const {deployIfDifferent, log} = deployments;
     const {deployer} = await getNamedAccounts();
 
-    let contract = await await deployments.get('EIP712Forwarder');
+    let contract = await deployments.getOrNull('EIP712Forwarder');
     if (!contract) {
         
         let deployResult;
@@ -13,7 +13,7 @@ module.exports = async ({getNamedAccounts, deployments}) => {
             console.error('cannot deploy', e);
             throw e;
         }
-        contract = await await deployments.get('EIP712Forwarder');
+        contract = await deployments.get('EIP712Forwarder');
         if(deployResult.newlyDeployed) {
             log(`EIP712Forwarder deployed at ${contract.address} for ${deployResult.receipt.gasUsed}`);
         }

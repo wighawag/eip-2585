@@ -1,10 +1,8 @@
 const {assert} = require('chai-local');
-const { ethers, deployments, getNamedAccounts } = require('@nomiclabs/buidler');
 const {Wallet} = require('ethers');
 const {expectRevert, zeroAddress, extractRevertMessageFromHexString} = require('../../utils/testHelpers');
 const {signMessage, createEIP712Signer, abiEncode, abiDecode} = require('../../utils/signing');
 const {setupForwarderAndForwarderReceiver} = require('../fixtures');
-const {getChainId} = deployments;
 
 const metaUserWallet = Wallet.createRandom();
 
