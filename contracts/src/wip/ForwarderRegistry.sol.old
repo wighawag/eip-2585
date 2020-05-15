@@ -1,0 +1,140 @@
+pragma solidity 0.6.5;
+
+pragma solidity 0.6.5;
+contract ForwarderRegistry {
+    /// @notice return the current nonce for the signer
+    mapping(address => uint256) public nonces;
+
+    /// @notice emitted for each Forwarder Approval or Disaproval
+    event ForwarderApproved(address signer, address forwarder, bool approved);
+
+    /// @notice return whether a forwarder is approved by a particular signer
+    /// @param signer signer who authorized or not the forwarder
+    /// @param forwarder meta transaction forwarder contract address
+    function isForwarderFor(address signer, address forwarder) external returns(bool) {
+        return forwarder == address(this) || _isForwarderFor[signer][forwarder];
+    }
+
+    /// @notice approve forwarder using the forwarder
+    /// @param v v param of signature
+    /// @param r r param of signature
+    /// @param s s param of signature
+    function approveForwarder(int8 v, bytes32 r, bytes32 s) external payable {
+        bytes memory data = msg.data;
+        uint256 length = msg.data.length;
+        address signer;
+        assembly { signer := mload(sub(add(data, length), 0x00)) }
+
+        approveForwarderFor(signer, msg.sender, true, v, r, s);
+    }
+
+    /// @notice approve a meta transaction forwarder via signature
+    /// @param signer signer approving the forwarder to call contracts on its behalf
+    /// @param forwarder contract that will perform meta transaction by appending the signer as the last 20bytes of call data
+    /// @param approved whether to approve or disapprove (if previously approved) a forwarder
+    /// @param v v param of signature
+    /// @param r r param of signature
+    /// @param s s param of signature
+    function approveForwarderFor(
+        address signer, address forwarder, bool approved, uint8 v, bytes32 r, bytes32 s
+    ) public{
+        // bytes32 digest = keccak256(
+        //     abi.encodePacked("\x19Ethereum Signed Message:\n", approved ? "32Approve" : "Reject", " Forwarder: ",msg.sender, " in registry: ",this, " (",nonces[signer]++,")")
+        // ));
+        bytes32 digest = keccak256(
+            abi.encodePacked("\x19Ethereum Signed Message:\n32", keccak256(
+                abi.encodePacked(this, signer, nonces[signer]++, forwarder, approved))
+        ));
+        require(signer == ecrecover(digest, v, r, s), "SIGNATURE_INVALID");
+        isForwarderFor[signer][forwarder] = approved;
+        emit ForwarderApproved(signer, forwarder, approved);
+    }
+
+    /// @notice approve and forward the meta transaction in one call.
+    /// This way, user can use the forwarder to do the first meta-tx without any required builtin support for it
+    /// @param v v param of signature
+    /// @param r r param of signature
+    /// @param s s param of signature
+    /// @param to destination of the call (that will receive the meta transaction)
+    /// @param dataToForward the content of the call (the signer address will be appended to it)
+    function approveAndForward(int8 v, bytes32 r, bytes32 s, address to, bytes calldata dataToForward) external payable {
+        bytes memory data = msg.data;
+        uint256 length = msg.data.length;
+        address signer;
+        assembly { signer := mload(sub(add(data, length), 0x00)) }
+
+        approveForwarderFor(signer, msg.sender, true, v, r, s);
+
+        (bool success,) = to.call{value:msg.value}(abi.encodePacked(dataToForward, signer);
+        if (!success) {
+            assembly { // This assembly ensure the revert contains the exact string data
+                let returnDataSize := returndatasize()
+                returndatacopy(0, 0, returnDataSize)
+                revert(0, returnDataSize)
+            }
+        }
+    }
+
+    // //////////////////////////// INTERNAL //////////////////////////////////////////
+    mapping(address => mapping(address => bool)) internal _isForwarderFor;
+}
+
+
+pragma solidity 0.6.5;
+abstract contract ReceiverBase {
+    ForwarderRegistry immutable _forwarderRegistry;
+    constructor(ForwarderRegistry forwarderRegistry) internal {
+        _forwarderRegistry = forwarderRegistry;
+    }
+    
+    function  _getMsgSender() internal view returns (address payable signer) {
+        bytes memory data = msg.data;
+        uint256 length = msg.data.length;
+        assembly { signer := mload(sub(add(data, length), 0x00)) }
+        if(!_forwarderRegistry.isForwarderFor(signer, msg.sender)) {
+            signer = msg.sender;    
+        }
+    }
+}
+
+
+// pragma solidity 0.6.5;
+// abstract contract ReceiverBase {
+//     ForwarderRegistry immutable _forwarderRegistry;
+//     constructor(ForwarderRegistry forwarderRegistry) internal {
+//         _forwarderRegistry = forwarderRegistry;
+//     }
+    
+//     function  _getMsgSender() internal view returns (address payable signer) {
+//         bytes memory data = msg.data;
+//         uint256 length = msg.data.length;
+//         uint256 magicValue;
+//         assembly { magicValue := mload(sub(add(data, length), 0x14)) }
+//         // magic value to detect use of forwarder
+//         if (magicValue == 0xade2996409c4720683d30366c55d4a9b3f2f9a0de23871f030db1740a9390981) {
+//             assembly { signer := mload(sub(add(data, length), 0x00)) }
+//             require(_forwarderRegistry.isForwarderFor(signer, msg.sender), "not authorized");
+//         } else {
+//             signer = msg.sender;    
+//         }
+//     }
+// }
+
+// abstract contract ReceiverBase {
+//     ForwarderRegistry immutable _forwarderRegistry;
+//     constructor(ForwarderRegistry forwarderRegistry) internal {
+//         _forwarderRegistry = forwarderRegistry;
+//     }
+    
+//     function  _getMsgSender() internal view returns (address payable signer) {
+//         bytes memory data = msg.data;
+//         uint256 length = msg.data.length;
+//         uint256 dataAsUint256;
+//         assembly { dataAsUint256 := mload(sub(add(data, length), 0x00)) }
+//         if ((dataAsUint256 >> 160) == 0xade2996409c4720683d30366) { // magic value to detect
+//             signer = address(dataAsUint256);
+//         } else {
+//             signer = msg.sender;    
+//         }
+//     }
+// }
