@@ -31,7 +31,7 @@
     "postcss": "^7.0.26",
     "postcss-load-config": "^2.1.0",
     "sapper": "git://github.com/wighawag/sapper.git#relative_baseUrl",
-    "svelte": "^3.0.0",
+    "svelte": "^3.49.0",
     "svelte-loader": "^2.9.0",
     "svelte-loader-hot": "^0.3.1-0",
     "svelte-preprocess": "^3.3.0",
